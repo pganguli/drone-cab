@@ -1,11 +1,11 @@
+import math
 import os
 import sys
-import numpy as np
-import random
-import math
-import networkx as nx
-from scipy.spatial import distance_matrix
+
 import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
+from scipy.spatial import distance_matrix
 
 if "SUMO_HOME" in os.environ:
     sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
@@ -13,11 +13,11 @@ import traci
 
 # import traci.constants as tc
 
-sumoCmd = ["sumo", "-c", "test.sumocfg", "-d", "150"]
+sumoCmd: list[str] = ["sumo", "-c", "test.sumocfg", "-d", "150"]
 
 traci.start(sumoCmd)
 
-map_boundary = (1734.66, 1581.42)
+map_boundary: tuple[float, float] = (1734.66, 1581.42)
 
 
 def shape2center(shape):
@@ -210,16 +210,13 @@ def isDropped():
 
 
 def droneTSP(pickup):  # parameter should be of form "pickup#k"
-
     pickup_center = shape2center(traci.polygon.getShape(pickup))
     pickup_cost = 0
 
     coordinates = [pickup_center]
 
     for num in np.nonzero(package_pickup_matrix)[0]:
-
         if ("package#" + str(num)) in package_vehicle_mapping:
-
             package = packages[num]
             package_center = shape2center(traci.polygon.getShape(package))
 
@@ -321,7 +318,6 @@ vehicle_load = {}
 vehicle_capacity = 2
 
 while step < 200:
-
     traci.simulationStep()
 
     if step == 30:
