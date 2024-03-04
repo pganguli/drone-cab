@@ -14,7 +14,13 @@ import traci
 
 # import traci.constants as tc
 
-sumoCmd: list[str] = ["sumo", "-c", "../data/sumo.sumocfg", "-d", "150"]
+sumoCmd: list[str] = [
+    "sumo",
+    "-c",
+    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "config.sumocfg"),
+    "-d",
+    "150",
+]
 
 traci.start(sumoCmd)
 
@@ -25,7 +31,7 @@ PICKUP_COUNTER = 0
 
 
 def shape2centroid(shape: list[tuple[float, float]]) -> tuple[float, float]:
-    return tuple(np.mean(np.asarray(shape), axis=1))
+    return tuple(np.mean(np.asarray(shape), axis=0))
 
 
 def euclidean_distance(
@@ -78,7 +84,7 @@ def get_pickup_id_list(
 ) -> list[str]:
     global PICKUP_COUNTER
 
-    angles = [0, 265, 90, 300, 180, 60, 330, 150, 120, 240, 210, 30]
+    angles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 265, 300, 330]
 
     radius = radius_increment
     pickup_id_list: list[str] = []
@@ -173,7 +179,7 @@ def assignPickup(package):
 
 
 def assignVehicle(pickup: int):
-    global vehicle_load, package_vehicle_mapping, pickup_vehicle_mapping, warehouse_edge
+    global vehicle_load, package_vehicle_mapping, pickup_vehicle_mapping, warehouse_edge_id
 
     pickup_id = f"pickup#{pickup}"
     if pickup_id not in pickup_vehicle_mapping:
@@ -188,7 +194,7 @@ def assignVehicle(pickup: int):
     for vehicle in vehicle_list:
         vehicle_route = traci.vehicle.getRouteID(vehicle)
         vehicle_edges = traci.route.getEdges(vehicle_route)
-        if warehouse_edge not in vehicle_edges:
+        if warehouse_edge_id not in vehicle_edges:
             vehicle_list.remove(vehicle)
             continue
 
