@@ -15,7 +15,7 @@ import traci
 # import traci.constants as tc
 
 sumoCmd: list[str] = [
-    "sumo-gui",
+    "sumo",
     "-c",
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "config.sumocfg"),
     "-d",
@@ -83,7 +83,7 @@ def get_pickup_id_list(
     radius_increment: int = 200, pickups_per_circle: int = 3
 ) -> list[str]:
     global PICKUP_COUNTER
-    
+
     pickup_center_list: list[tuple[float, float]] = [(1108.783925, 787.6503665714287), (891.3527764504684, 588.4114269530795), (908.783925, 987.6503665714287), (1108.783925, 441.2402050576532), (508.78392499999995, 787.6503665714287), (1108.783925, 1134.0605280852042), (1428.399167270663, 487.6503665714284), (389.16868272933675, 1087.6503665714285), (608.7839250000001, 1307.2656088420918), (508.7839249999996, 94.83004354387799), (1708.783925, 787.6503665714287)]
     pickup_id_list: list[str] = []
     for pickup_center in pickup_center_list:
@@ -109,7 +109,8 @@ def get_pickup_id_list(
 
 def get_pickup_capacity_dict(pickup_id_list: list[str]) -> dict[int, int]:
     return {
-        pickup_id: random.randint(5, 15) for pickup_id in range(len(pickup_id_list))
+        # pickup_id: random.randint(5, 15) for pickup_id in range(len(pickup_id_list))
+        pickup_id: 2 for pickup_id in range(len(pickup_id_list))
     }
 
 
@@ -230,61 +231,59 @@ def droneTSP(pickup: str):  # parameter should be of form "pickup#k"
     pickup_cost = 0
 
     coordinates = [pickup_center]
+    pickup_no = int(pickup.rpartition("#")[2])
 
-    for num in np.nonzero(package_pickup_matrix)[0]:
-        if ("package#" + str(num)) in package_vehicle_mapping:
-            package = destination_id_list[num]
-            package_center = shape2centroid(traci.polygon.getShape(package))
+    for num in np.nonzero(package_pickup_matrix.T[pickup_no])[0]:
+        package = destination_id_list[num]
+        package_center = shape2centroid(traci.polygon.getShape(package))
+        coordinates.append(package_center)
 
-            coordinates.append(package_center)
-
-    if len(coordinates) > 1:
-        coordinates = np.array(coordinates)
-        dist_matrix = distance_matrix(coordinates, coordinates)
-        dist_matrix = np.round(dist_matrix, decimals=2)
-        plt.figure(figsize=(10, 6))
-        G = nx.from_numpy_array(dist_matrix)
-        path = nx.approximation.christofides(G)
-        pos = {}
-        for node in G.nodes():
-            pos[node] = [coordinates[node, 0], coordinates[node, 1]]
-        nx.draw_networkx_nodes(G, pos=pos, nodelist=[0], node_color="#ff0000")
-        nx.draw_networkx_nodes(
-            G, pos=pos, nodelist=list(G.nodes)[1:], node_color="#df34eb"
-        )
-        edgelist = []
-        for i in range(0, len(path) - 1):
-            edgelist.append((path[i], path[i + 1]))
-            pickup_cost += G.get_edge_data(path[i], path[i + 1])["weight"]
-        print(f"Drone travel distance for {pickup}: {pickup_cost:.2f} m")
-        nx.draw_networkx_edges(
-            G,
-            pos=pos,
-            edgelist=G.edges() - (edgelist + [(j, i) for (i, j) in edgelist]),
-        )
-        nx.draw_networkx_edges(
-            G,
-            pos=pos,
-            edgelist=edgelist,
-            edge_color="darkorange",
-            arrows=True,
-            arrowstyle="-|>",
-        )
-        edge_labels = nx.get_edge_attributes(G, "weight")
-        nx.draw_networkx_edge_labels(
-            G, pos=pos, edge_labels=edge_labels, label_pos=0.25
-        )
-        labels = {}
-        labels[0] = pickup
-        for node in list(G.nodes)[1:]:
-            labels[node] = "package#" + str(node - 1)
-        for i, p in enumerate(pos):
-            if i % 2 == 0:
-                pos[p][1] -= 7
-            else:
-                pos[p][1] += 7
-        nx.draw_networkx_labels(G, pos=pos, labels=labels, font_size=10)
-        plt.show()
+    coordinates = np.array(coordinates)
+    dist_matrix = distance_matrix(coordinates, coordinates)
+    dist_matrix = np.round(dist_matrix, decimals=2)
+    plt.figure(figsize=(10, 6))
+    G = nx.from_numpy_array(dist_matrix)
+    path = nx.approximation.christofides(G)
+    pos = {}
+    for node in G.nodes():
+        pos[node] = [coordinates[node, 0], coordinates[node, 1]]
+    nx.draw_networkx_nodes(G, pos=pos, nodelist=[0], node_color="#ff0000")
+    nx.draw_networkx_nodes(
+        G, pos=pos, nodelist=list(G.nodes)[1:], node_color="#df34eb"
+    )
+    edgelist = []
+    for i in range(0, len(path) - 1):
+        edgelist.append((path[i], path[i + 1]))
+        pickup_cost += G.get_edge_data(path[i], path[i + 1])["weight"]
+    print(f"Drone travel distance for {pickup}: {pickup_cost:.2f} m")
+    nx.draw_networkx_edges(
+        G,
+        pos=pos,
+        edgelist=G.edges() - (edgelist + [(j, i) for (i, j) in edgelist]),
+    )
+    nx.draw_networkx_edges(
+        G,
+        pos=pos,
+        edgelist=edgelist,
+        edge_color="darkorange",
+        arrows=True,
+        arrowstyle="-|>",
+    )
+    edge_labels = nx.get_edge_attributes(G, "weight")
+    nx.draw_networkx_edge_labels(
+        G, pos=pos, edge_labels=edge_labels, label_pos=0.25
+    )
+    labels = {}
+    labels[0] = pickup
+    for node in list(G.nodes)[1:]:
+        labels[node] = "package#" + str(node - 1)
+    for i, p in enumerate(pos):
+        if i % 2 == 0:
+            pos[p][1] -= 7
+        else:
+            pos[p][1] += 7
+    nx.draw_networkx_labels(G, pos=pos, labels=labels, font_size=10)
+    plt.show()
 
 
 def get_lane_id_list() -> list[str]:
@@ -326,7 +325,7 @@ if __name__ == "__main__":
     vehicle_load = {}
     vehicle_capacity = 2
 
-    for step in range(200):
+    for step in range(1200):
         traci.simulationStep()
 
         if step == 30:
