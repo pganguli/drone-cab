@@ -15,7 +15,7 @@ import traci
 # import traci.constants as tc
 
 sumoCmd: list[str] = [
-    "sumo",
+    "sumo-gui",
     "-c",
     os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "config.sumocfg"),
     "-d",
@@ -84,7 +84,7 @@ def get_pickup_id_list(
 ) -> list[str]:
     global PICKUP_COUNTER
 
-    angles = [0, 30, 60, 90, 120, 150, 180, 210, 240, 265, 300, 330]
+    angles = [0, 265, 90, 300, 180, 60, 330, 150, 120, 240, 210, 30]
 
     radius = radius_increment
     pickup_id_list: list[str] = []
