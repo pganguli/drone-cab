@@ -83,39 +83,28 @@ def get_pickup_id_list(
     radius_increment: int = 200, pickups_per_circle: int = 3
 ) -> list[str]:
     global PICKUP_COUNTER
-
-    angles = [0, 265, 90, 300, 180, 60, 330, 150, 120, 240, 210, 30]
-
-    radius = radius_increment
+    
+    pickup_center_list: list[tuple[float, float]] = [(1108.783925, 787.6503665714287), (891.3527764504684, 588.4114269530795), (908.783925, 987.6503665714287), (1108.783925, 441.2402050576532), (508.78392499999995, 787.6503665714287), (1108.783925, 1134.0605280852042), (1428.399167270663, 487.6503665714284), (389.16868272933675, 1087.6503665714285), (608.7839250000001, 1307.2656088420918), (508.7839249999996, 94.83004354387799), (1708.783925, 787.6503665714287)]
     pickup_id_list: list[str] = []
-    while True:
-        for _ in range(pickups_per_circle):
-            pickup_id = f"pickup#{PICKUP_COUNTER}"
-            theta = math.radians(angles[int(pickup_id[-1])])
-            pickup_center = (
-                radius * math.cos(theta),
-                radius * math.sin(theta),
-            ) + warehouse_center
+    for pickup_center in pickup_center_list:
+        pickup_id = f"pickup#{PICKUP_COUNTER}"
 
-            if pickup_center < MAP_BOUNDARY:
-                traci.polygon.add(
-                    polygonID=pickup_id,
-                    shape=[
-                        (pickup_center[0], pickup_center[1]),
-                        (pickup_center[0] + 15, pickup_center[1]),
-                        (pickup_center[0] + 15, pickup_center[1] + 15),
-                        (pickup_center[0], pickup_center[1] + 15),
-                        (pickup_center[0], pickup_center[1]),
-                    ],
-                    color=[255, 0, 0],
-                    polygonType="pickup",
-                    fill=True,
-                )
-                pickup_id_list.append(pickup_id)
-                PICKUP_COUNTER += 1
-            else:
-                return pickup_id_list
-        radius += radius_increment
+        traci.polygon.add(
+            polygonID=pickup_id,
+            shape=[
+                (pickup_center[0], pickup_center[1]),
+                (pickup_center[0] + 15, pickup_center[1]),
+                (pickup_center[0] + 15, pickup_center[1] + 15),
+                (pickup_center[0], pickup_center[1] + 15),
+                (pickup_center[0], pickup_center[1]),
+            ],
+            color=[255, 0, 0],
+            polygonType="pickup",
+            fill=True,
+        )
+        pickup_id_list.append(pickup_id)
+        PICKUP_COUNTER += 1
+    return pickup_id_list
 
 
 def get_pickup_capacity_dict(pickup_id_list: list[str]) -> dict[int, int]:
@@ -303,7 +292,7 @@ def get_lane_id_list() -> list[str]:
 
 
 def filter_internal_list_id(id_list: list[str]) -> list[str]:
-    return list(filter(lambda id: id.startswith(":"), id_list))
+    return list(filter(lambda id: not id.startswith(":"), id_list))
 
 
 def get_polygon_id_list() -> list[str]:
