@@ -1,6 +1,6 @@
-import random
 import math
 import os
+# import random
 import sys
 
 import matplotlib.pyplot as plt
@@ -12,12 +12,23 @@ if "SUMO_HOME" in os.environ:
     sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci
 
-# import traci.constants as tc
+from .utils import (
+    euclidean_distance,
+    filter_internal_list_id,
+    get_building_id_list,
+    get_lane_id_list,
+    get_nearest_edge,
+    get_pickup_edge_dict,
+    get_polygon_id_list,
+    shape2centroid,
+)
 
 sumoCmd: list[str] = [
     "sumo",
     "-c",
-    os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "data", "config.sumocfg"),
+    os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "..", "data", "config.sumocfg"
+    ),
     "-d",
     "150",
 ]
@@ -26,49 +37,6 @@ traci.start(sumoCmd)
 
 MAP_BOUNDARY = (1734.66, 1581.42)
 WAREHOUSE_ID = "239796134"
-EDGE_COUNTER = 0
-PICKUP_COUNTER = 0
-
-
-def shape2centroid(shape: list[tuple[float, float]]) -> tuple[float, float]:
-    return tuple(np.mean(np.asarray(shape), axis=0))
-
-
-def euclidean_distance(
-    point_a: tuple[float, float], point_b: tuple[float, float]
-) -> float:
-    return float(np.linalg.norm(np.asarray(point_a) - np.asarray(point_b)))
-
-
-def get_nearest_edge(polygon_id: str, lane_id_list: list[str]) -> str:
-    global EDGE_COUNTER
-
-    nearest_lane_id = min(
-        lane_id_list,
-        key=lambda lane_id: euclidean_distance(
-            shape2centroid(traci.polygon.getShape(polygon_id)),
-            shape2centroid(traci.lane.getShape(lane_id)),
-        ),
-    )
-    nearest_lane_center = shape2centroid(traci.lane.getShape(nearest_lane_id))
-
-    traci.polygon.add(
-        polygonID=f"edge#{EDGE_COUNTER}",
-        shape=[
-            (nearest_lane_center[0], nearest_lane_center[1]),
-            (nearest_lane_center[0] + 10, nearest_lane_center[1]),
-            (nearest_lane_center[0] + 10, nearest_lane_center[1] + 10),
-            (nearest_lane_center[0], nearest_lane_center[1] + 10),
-            (nearest_lane_center[0], nearest_lane_center[1]),
-        ],
-        color=[0, 255, 0],
-        polygonType="edge",
-        fill=True,
-    )
-    EDGE_COUNTER += 1
-
-    nearest_edge_id = traci.lane.getEdgeID(nearest_lane_id)
-    return nearest_edge_id
 
 
 def select_warehouse() -> str:
@@ -79,15 +47,25 @@ def select_warehouse() -> str:
     return warehouse_id
 
 
-def get_pickup_id_list(
-    radius_increment: int = 200, pickups_per_circle: int = 3
-) -> list[str]:
-    global PICKUP_COUNTER
+def get_pickup_id_list() -> list[str]:
+    pickup_center_list: list[tuple[float, float]] = [
+        (1108.783925, 787.6503665714287),
+        (891.3527764504684, 588.4114269530795),
+        (908.783925, 987.6503665714287),
+        (1108.783925, 441.2402050576532),
+        (508.78392499999995, 787.6503665714287),
+        (1108.783925, 1134.0605280852042),
+        (1428.399167270663, 487.6503665714284),
+        (389.16868272933675, 1087.6503665714285),
+        (608.7839250000001, 1307.2656088420918),
+        (508.7839249999996, 94.83004354387799),
+        (1708.783925, 787.6503665714287),
+    ]
 
-    pickup_center_list: list[tuple[float, float]] = [(1108.783925, 787.6503665714287), (891.3527764504684, 588.4114269530795), (908.783925, 987.6503665714287), (1108.783925, 441.2402050576532), (508.78392499999995, 787.6503665714287), (1108.783925, 1134.0605280852042), (1428.399167270663, 487.6503665714284), (389.16868272933675, 1087.6503665714285), (608.7839250000001, 1307.2656088420918), (508.7839249999996, 94.83004354387799), (1708.783925, 787.6503665714287)]
     pickup_id_list: list[str] = []
+    pickup_counter = 0
     for pickup_center in pickup_center_list:
-        pickup_id = f"pickup#{PICKUP_COUNTER}"
+        pickup_id = f"pickup#{pickup_counter}"
 
         traci.polygon.add(
             polygonID=pickup_id,
@@ -103,36 +81,26 @@ def get_pickup_id_list(
             fill=True,
         )
         pickup_id_list.append(pickup_id)
-        PICKUP_COUNTER += 1
+        pickup_counter += 1
+
     return pickup_id_list
 
 
 def get_pickup_capacity_dict(pickup_id_list: list[str]) -> dict[int, int]:
     return {
         # pickup_id: random.randint(5, 15) for pickup_id in range(len(pickup_id_list))
-        pickup_id: 2 for pickup_id in range(len(pickup_id_list))
+        pickup_id: 2
+        for pickup_id in range(len(pickup_id_list))
     }
 
 
-def get_pickup_edge_dict(
-    pickup_id_list: list[str], lane_id_list: list[str]
-) -> dict[str, str]:
-    return {
-        pickup_id: get_nearest_edge(pickup_id, lane_id_list)
-        for pickup_id in pickup_id_list
-    }
-
-
-def handle_package_request(destination_id: str):
-    traci.polygon.setColor(destination_id, (222, 52, 235))
-    assignPickup(destination_id)
-
-
-def assignPickup(package):
+def assign_pickup(
+    destination_id: str, pickup_id_list: list[str], pickup_capacity_dict: dict[int, int]
+):
     global package_pickup_matrix
-    new_assignment = np.zeros(PICKUP_COUNTER)
+    new_assignment = np.zeros(len(pickup_id_list))
 
-    package_center = shape2centroid(traci.polygon.getShape(package))
+    package_center = shape2centroid(traci.polygon.getShape(destination_id))
 
     package_pickup_distance = [
         euclidean_distance(
@@ -143,7 +111,7 @@ def assignPickup(package):
     ]
 
     selected_pickup = 0
-    while package_pickup_distance != [math.inf] * PICKUP_COUNTER:
+    while package_pickup_distance != [math.inf] * len(pickup_id_list):
         selected_pickup = package_pickup_distance.index(min(package_pickup_distance))
         if np.any(package_pickup_matrix):
             if (
@@ -157,7 +125,6 @@ def assignPickup(package):
                 )
                 break
             else:
-                print(package_no, selected_pickup)
                 package_pickup_distance[selected_pickup] = math.inf
         else:
             new_assignment[selected_pickup] = 1
@@ -169,7 +136,11 @@ def assignPickup(package):
 
 
 def assignVehicle(pickup: int):
-    global vehicle_load, package_vehicle_mapping, pickup_vehicle_mapping, warehouse_edge_id
+    global \
+        vehicle_load, \
+        package_vehicle_mapping, \
+        pickup_vehicle_mapping, \
+        warehouse_edge_id
 
     pickup_id = f"pickup#{pickup}"
     if pickup_id not in pickup_vehicle_mapping:
@@ -226,7 +197,7 @@ def isDropped():
                 droneTSP(pickup)
 
 
-def droneTSP(pickup: str):  # parameter should be of form "pickup#k"
+def droneTSP(pickup: str):
     pickup_center = shape2centroid(traci.polygon.getShape(pickup))
     pickup_cost = 0
 
@@ -248,9 +219,7 @@ def droneTSP(pickup: str):  # parameter should be of form "pickup#k"
     for node in G.nodes():
         pos[node] = [coordinates[node, 0], coordinates[node, 1]]
     nx.draw_networkx_nodes(G, pos=pos, nodelist=[0], node_color="#ff0000")
-    nx.draw_networkx_nodes(
-        G, pos=pos, nodelist=list(G.nodes)[1:], node_color="#df34eb"
-    )
+    nx.draw_networkx_nodes(G, pos=pos, nodelist=list(G.nodes)[1:], node_color="#df34eb")
     edgelist = []
     for i in range(0, len(path) - 1):
         edgelist.append((path[i], path[i + 1]))
@@ -270,9 +239,7 @@ def droneTSP(pickup: str):  # parameter should be of form "pickup#k"
         arrowstyle="-|>",
     )
     edge_labels = nx.get_edge_attributes(G, "weight")
-    nx.draw_networkx_edge_labels(
-        G, pos=pos, edge_labels=edge_labels, label_pos=0.25
-    )
+    nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels, label_pos=0.25)
     labels = {}
     labels[0] = pickup
     for node in list(G.nodes)[1:]:
@@ -286,28 +253,7 @@ def droneTSP(pickup: str):  # parameter should be of form "pickup#k"
     plt.show()
 
 
-def get_lane_id_list() -> list[str]:
-    return traci.lane.getIDList()
-
-
-def filter_internal_list_id(id_list: list[str]) -> list[str]:
-    return list(filter(lambda id: not id.startswith(":"), id_list))
-
-
-def get_polygon_id_list() -> list[str]:
-    return traci.polygon.getIDList()
-
-
-def get_building_id_list(polygon_id_list: list[str]) -> list[str]:
-    return list(
-        filter(
-            lambda polygon_id: traci.polygon.getType(polygon_id) != "building",
-            polygon_id_list,
-        )
-    )
-
-
-if __name__ == "__main__":
+def main():
     lane_id_list: list[str] = filter_internal_list_id(get_lane_id_list())
 
     warehouse_id = select_warehouse()
@@ -332,7 +278,8 @@ if __name__ == "__main__":
             package_no = 0
             destination_id_list = ["234807099", "239713538", "359039090"]
             for destination_id in destination_id_list:
-                handle_package_request(destination_id)
+                traci.polygon.setColor(destination_id, (222, 52, 235))
+                assign_pickup(destination_id, pickup_id_list, pickup_capacity_dict)
                 package_no += 1
             print(package_pickup_matrix)
             print(package_vehicle_mapping)
@@ -340,3 +287,7 @@ if __name__ == "__main__":
         isDropped()
 
     traci.close()
+
+
+if __name__ == "__main__":
+    main()
