@@ -8,19 +8,15 @@ if "SUMO_HOME" in os.environ:
 import traci
 
 
-def shape2centroid(shape: list[tuple[float, float]]) -> tuple[float, float]:
-    return tuple(np.mean(np.asarray(shape), axis=0))
+def shape2centroid(shape: list[tuple[float, ...]]) -> tuple[float, ...]:
+    return tuple(map(lambda dim_sum: dim_sum / len(shape), [sum(x) for x in zip(*shape)]))
 
 
-def euclidean_distance(
-    point_a: tuple[float, float], point_b: tuple[float, float]
-) -> float:
+def euclidean_distance(point_a: tuple[float, ...], point_b: tuple[float, ...]) -> float:
     return math.hypot(*map(sub, point_a, point_b))
 
 
 def get_nearest_edge(polygon_id: str, lane_id_list: list[str]) -> str:
-    global EDGE_COUNTER
-
     nearest_lane_id = min(
         lane_id_list,
         key=lambda lane_id: euclidean_distance(
@@ -31,7 +27,7 @@ def get_nearest_edge(polygon_id: str, lane_id_list: list[str]) -> str:
     nearest_lane_center = shape2centroid(traci.lane.getShape(nearest_lane_id))
 
     traci.polygon.add(
-        polygonID=f"edge#{EDGE_COUNTER}",
+        polygonID=f"edge#{nearest_lane_id}",
         shape=[
             (nearest_lane_center[0], nearest_lane_center[1]),
             (nearest_lane_center[0] + 10, nearest_lane_center[1]),
@@ -43,7 +39,6 @@ def get_nearest_edge(polygon_id: str, lane_id_list: list[str]) -> str:
         polygonType="edge",
         fill=True,
     )
-    EDGE_COUNTER += 1
 
     nearest_edge_id = traci.lane.getEdgeID(nearest_lane_id)
     return nearest_edge_id

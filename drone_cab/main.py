@@ -12,7 +12,7 @@ if "SUMO_HOME" in os.environ:
     sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci
 
-from .utils import (
+from drone_cab.utils import (
     euclidean_distance,
     filter_internal_list_id,
     get_building_id_list,
