@@ -1,22 +1,29 @@
 import math
-import os
-import sys
 from operator import sub
 
-if "SUMO_HOME" in os.environ:
-    sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci
 
 
-def shape2centroid(shape: list[tuple[float, ...]]) -> tuple[float, ...]:
-    return tuple(map(lambda dim_sum: dim_sum / len(shape), [sum(x) for x in zip(*shape)]))
+def shape2centroid(shape: list[tuple[float, float]]) -> tuple[float, float]:
+    centroid = tuple(
+        map(lambda dim_sum: dim_sum / len(shape), [sum(x) for x in zip(*shape)])
+    )
+    assert (
+        len(centroid) == 2
+    ), f"Expected 2-D centroid for {shape=}, got {len(centroid)}-D"
+    return centroid
 
 
-def euclidean_distance(point_a: tuple[float, ...], point_b: tuple[float, ...]) -> float:
+def euclidean_distance(
+    point_a: tuple[float, float], point_b: tuple[float, float]
+) -> float:
+    assert (
+        len(point_a) == 2
+    ), f"Expected 2-D point={point_a}, got {len(point_a)}-D"
     return math.hypot(*map(sub, point_a, point_b))
 
 
-def get_nearest_edge(polygon_id: str, lane_id_list: list[str]) -> str:
+def get_nearest_edge_id(polygon_id: str, lane_id_list: list[str]) -> str:
     nearest_lane_id = min(
         lane_id_list,
         key=lambda lane_id: euclidean_distance(
@@ -44,16 +51,8 @@ def get_nearest_edge(polygon_id: str, lane_id_list: list[str]) -> str:
     return nearest_edge_id
 
 
-def get_lane_id_list() -> list[str]:
-    return traci.lane.getIDList()
-
-
-def filter_internal_list_id(id_list: list[str]) -> list[str]:
-    return list(filter(lambda id: not id.startswith(":"), id_list))
-
-
-def get_polygon_id_list() -> list[str]:
-    return traci.polygon.getIDList()
+def get_lane_list() -> list[str]:
+    return list(filter(lambda id: not id.startswith(":"), traci.lane.getIDList()))
 
 
 def get_building_id_list(polygon_id_list: list[str]) -> list[str]:
@@ -63,12 +62,3 @@ def get_building_id_list(polygon_id_list: list[str]) -> list[str]:
             polygon_id_list,
         )
     )
-
-
-def get_pickup_edge_dict(
-    pickup_id_list: list[str], lane_id_list: list[str]
-) -> dict[str, str]:
-    return {
-        pickup_id: get_nearest_edge(pickup_id, lane_id_list)
-        for pickup_id in pickup_id_list
-    }

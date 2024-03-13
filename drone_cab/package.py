@@ -1,0 +1,81 @@
+from __future__ import annotations
+
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from drone_cab.pickup import Pickup
+    from drone_cab.vehicle import Vehicle
+    from drone_cab.warehouse import Warehouse
+
+import traci
+
+from drone_cab.utils import (
+    euclidean_distance,
+    get_lane_list,
+    get_nearest_edge_id,
+    shape2centroid,
+)
+
+
+class Package:
+    def __init__(self, destination_id: str) -> None:
+        self.id = destination_id
+        traci.polygon.setColor(self.id, (222, 52, 235))
+
+        self.center = shape2centroid(traci.polygon.getShape(self.id))
+        self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
+        self.assigned_pickup: Pickup | None = None
+        self.reached_pickup: bool = False
+        self.reached_destination: bool = False
+
+    def __str__(self) -> str:
+        return self.id
+
+    def __repr__(self) -> str:
+        return f"Package({self.id})"
+
+    def assign_pickup(self, pickup: Pickup) -> None:
+        self.assigned_pickup = pickup
+
+
+def assign_package_pickup(package: Package, pickup_list: list[Pickup]) -> Pickup | None:
+    pickup_list = sorted(
+        pickup_list,
+        key=lambda pickup: euclidean_distance(package.center, pickup.center),
+    )
+
+    for pickup in pickup_list:
+        if len(pickup.assigned_package_set) < pickup.capacity:
+            pickup.assign_package(package)
+            package.assign_pickup(pickup)
+            return pickup
+
+    return None
+
+
+def assign_package_vehicle(
+    package: Package, vehicle_list: list[Vehicle], warehouse: Warehouse
+) -> Vehicle | None:
+    assert (
+        package.assigned_pickup is not None
+    ), f"Attempted to assign vehicle to {package=} with no assigned pickup"
+
+    vehicle_list = sorted(
+        list(
+            filter(
+                lambda vehicle: vehicle.is_visiting_warehouse(warehouse), vehicle_list
+            )
+        ),
+        key=lambda vehicle: vehicle.get_distance_along_road(warehouse.center),
+    )
+
+    for vehicle in vehicle_list:
+        if (
+            len(vehicle.carrying_package_set) < vehicle.capacity
+            and package.assigned_pickup.nearest_edge_id
+            in vehicle.get_route_edge_id_list()
+        ):
+            vehicle.assign_package(package)
+            return vehicle
+
+    return None
