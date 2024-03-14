@@ -37,7 +37,7 @@ class Package:
 
     def assign_pickup(self, pickup: Pickup) -> None:
         self.assigned_pickup = pickup
-        logger.debug(f"Assigned pickup of {self} to {pickup}")
+        # logger.debug(f"Assigned pickup of {self}: {pickup}")
 
     def assign_package_pickup(self, pickup_list: list[Pickup]) -> Pickup | None:
         pickup_list = sorted(
@@ -49,7 +49,7 @@ class Package:
             if len(pickup.assigned_package_set) < pickup.capacity:
                 pickup.assign_package(self)
                 self.assign_pickup(pickup)
-                logger.debug(f"Assigned pickup of {self} to {pickup}")
+                logger.debug(f"Assigned pickup of {self}: {pickup}")
                 return pickup
 
         logger.debug(f"Failed to assign pickup of {self} to any pickup")
@@ -82,7 +82,7 @@ class Package:
                 in vehicle.get_route_edge_id_list()
             ):
                 vehicle.assign_package(self)
-                logger.debug(f"Assigned pickup of {self} to {vehicle}")
+                logger.debug(f"Assigned vehicle of {self}: {vehicle}")
                 return vehicle
 
         logger.debug(f"Failed to assign pickup of {self} to any vehicle")

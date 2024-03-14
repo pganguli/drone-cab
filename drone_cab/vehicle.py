@@ -17,11 +17,15 @@ def VEHICLE_CAPACITY():
 
 
 class Vehicle:
+
+    created_vehicles = []
+
     def __init__(self, vehicle_id: str, vehicle_capacity: int) -> None:
         self.id = vehicle_id
         self.capacity = vehicle_capacity
         self.carrying_package_set: set[Package] = set()
-        logger.debug(f"Created {self}")
+        Vehicle.created_vehicles.append(self)
+        # logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
         return f"Vehicle({self.id}, {self.capacity})"
@@ -61,7 +65,7 @@ class Vehicle:
 
         self.carrying_package_set.add(package)
         traci.vehicle.setColor(self.id, (0, 255, 0))
-        logger.debug(f"Assigned pickup of {package} to {self}")
+        logger.debug(f"Assigned vehicle of {package}: {self}")
 
     def drop_package(self, package: Package) -> None:
         try:
