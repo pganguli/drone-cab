@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -8,6 +9,8 @@ if TYPE_CHECKING:
 import traci
 
 from drone_cab.utils import get_lane_list, get_nearest_edge_id
+
+logger = logging.getLogger(__name__)
 
 
 def PICKUP_CAPACITY():
@@ -54,34 +57,51 @@ class Pickup:
         )
 
         self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
-
-    def __str__(self) -> str:
-        return self.id
+        logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
         return f"Pickup({self.center}, {self.capacity})"
 
     def assign_package(self, package: Package) -> None:
-        assert (
-            package not in self.assigned_package_set
-        ), f"Attempted to assign already-assigned {package=} to pickup={self}"
+        try:
+            assert (
+                package not in self.assigned_package_set
+            ), f"Attempted to assign already-assigned {package} to {self}"
+        except AssertionError:
+            logger.warning("AssertionError", exc_info=True)
+            return
+
         self.assigned_package_set.add(package)
+        logger.debug(f"Assigned pickup of {package} to {self}")
 
     def drop_package(self, package: Package) -> None:
-        assert (
-            package not in self.dropped_package_set
-        ), f"Attempted to drop existing {package=} at pickup={self}"
-        assert (
-            len(self.dropped_package_set) < self.capacity
-        ), f"Adding of {package=} to pickup={self} exceeds capacity={self.capacity}"
+        try:
+            assert (
+                package not in self.dropped_package_set
+            ), f"Attempted to drop existing {package} at {self}"
+        except AssertionError:
+            logger.warning("AssertionError", exc_info=True)
+            return
+
+        try:
+            assert (
+                len(self.dropped_package_set) < self.capacity
+            ), f"Adding of {package} to {self} exceeds capacity={self.capacity}"
+        except AssertionError as e:
+            logger.error("AssertionError", exc_info=True)
+            raise e
+
         self.assigned_package_set.remove(package)
         self.dropped_package_set.add(package)
+        logger.debug(f"Dropped {package} at {self}")
 
     def pickup_package(self, package: Package) -> None:
         self.dropped_package_set.remove(package)
+        logger.debug(f"Picked up {package} from {self}")
 
-
-def get_pickup_list() -> list[Pickup]:
-    return [
-        Pickup(pickup_center, PICKUP_CAPACITY()) for pickup_center in PICKUP_CENTER_LIST
-    ]
+    @staticmethod
+    def create_pickup_list() -> list[Pickup]:
+        return [
+            Pickup(pickup_center, PICKUP_CAPACITY())
+            for pickup_center in PICKUP_CENTER_LIST
+        ]

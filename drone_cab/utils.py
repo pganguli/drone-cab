@@ -1,7 +1,10 @@
+import logging
 import math
 from operator import sub
 
 import traci
+
+logger = logging.getLogger(__name__)
 
 
 def shape2centroid(shape: list[tuple[float, float]]) -> tuple[float, float]:
@@ -17,9 +20,7 @@ def shape2centroid(shape: list[tuple[float, float]]) -> tuple[float, float]:
 def euclidean_distance(
     point_a: tuple[float, float], point_b: tuple[float, float]
 ) -> float:
-    assert (
-        len(point_a) == 2
-    ), f"Expected 2-D point={point_a}, got {len(point_a)}-D"
+    assert len(point_a) == 2, f"Expected 2-D point={point_a}, got {len(point_a)}-D"
     return math.hypot(*map(sub, point_a, point_b))
 
 
@@ -48,6 +49,8 @@ def get_nearest_edge_id(polygon_id: str, lane_id_list: list[str]) -> str:
     )
 
     nearest_edge_id = traci.lane.getEdgeID(nearest_lane_id)
+
+    logger.debug(f"Found {nearest_edge_id=} of {polygon_id=}")
     return nearest_edge_id
 
 

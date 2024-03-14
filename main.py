@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 
@@ -11,28 +12,30 @@ if "SUMO_HOME" in os.environ:
 import traci
 
 from drone_cab import Package, Pickup, Vehicle, Warehouse
-from drone_cab.package import assign_package_pickup, assign_package_vehicle
-from drone_cab.pickup import get_pickup_list
-from drone_cab.vehicle import get_vehicle_list
-from drone_cab.warehouse import get_warehouse_id
+
+logger = logging.getLogger(__name__)
 
 
 def poll_packages(pickup_list: list[Pickup], vehicle_list: list[Vehicle]):
     vehicle_list = list(
-        filter(lambda vehicle: len(vehicle.carrying_package_set) > 0, vehicle_list)
+        filter(lambda vehicle: vehicle.carrying_package_set, vehicle_list)
     )
 
     for vehicle in vehicle_list:
         for package in vehicle.carrying_package_set:
-            assert (
-                package.assigned_pickup is not None
-            ), f"Attempted to query vehicle on {package=} with no assigned pickup"
+            try:
+                assert (
+                    package.assigned_pickup is not None
+                ), f"Attempted to query vehicle on {package} with no assigned pickup"
+            except AssertionError as e:
+                logger.error("AssertionError", exc_info=True)
+                raise e
 
             if vehicle.get_road_id() == package.assigned_pickup.nearest_edge_id:
                 vehicle.drop_package(package)
 
     pickup_list = list(
-        filter(lambda pickup: len(pickup.assigned_package_set) == 0, pickup_list)
+        filter(lambda pickup: not pickup.assigned_package_set, pickup_list)
     )
 
     for pickup in pickup_list:
@@ -92,6 +95,12 @@ def droneTSP(pickup: Pickup):
 
 
 if __name__ == "__main__":
+    logging.basicConfig(
+        filename="drone_cab.log",
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        level=logging.DEBUG,
+    )
+
     traci.start(
         [
             "sumo",
@@ -105,22 +114,25 @@ if __name__ == "__main__":
             "150",
         ]
     )
+    logger.info("traci.start()")
 
-    warehouse = Warehouse(get_warehouse_id())
-    pickup_list = get_pickup_list()
-    vehicle_list = get_vehicle_list()
+    warehouse = Warehouse(Warehouse.create_warehouse_id())
+    pickup_list = Pickup.create_pickup_list()
+    vehicle_list = Vehicle.create_vehicle_list()
 
     for step in range(1200):
         traci.simulationStep()
+        logger.info(f"traci.simulationStep() at {step=}")
 
         if step == 30:
-            destination_id_list = ["234807099", "239713538", "359039090"]
-            for destination_id in destination_id_list:
-                package = Package(destination_id)
-                pickup = assign_package_pickup(package, pickup_list)
-                assert pickup is not None, f"Failed to assign {package=} to any pickup"
-                vehicle = assign_package_vehicle(package, vehicle_list, warehouse)
+            package_list = [Package("234807099"), Package("239713538"), Package("359039090")]
+            for package in package_list:
+                pickup = package.assign_package_pickup(pickup_list)
+                assert pickup is not None, f"Failed to assign {package} to any pickup"
+                vehicle = package.assign_package_vehicle(vehicle_list, warehouse)
+                assert vehicle is not None, f"Failed to assign {package} to any vehicle"
 
         poll_packages(pickup_list, vehicle_list)
 
     traci.close()
+    logger.info("traci.close()")

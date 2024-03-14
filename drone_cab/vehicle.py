@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -7,6 +8,8 @@ if TYPE_CHECKING:
     from drone_cab.warehouse import Warehouse
 
 import traci
+
+logger = logging.getLogger(__name__)
 
 
 def VEHICLE_CAPACITY():
@@ -18,9 +21,7 @@ class Vehicle:
         self.id = vehicle_id
         self.capacity = vehicle_capacity
         self.carrying_package_set: set[Package] = set()
-
-    def __str__(self) -> str:
-        return self.id
+        logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
         return f"Vehicle({self.id}, {self.capacity})"
@@ -42,28 +43,45 @@ class Vehicle:
         )
 
     def assign_package(self, package: Package) -> None:
-        assert (
-            package not in self.carrying_package_set
-        ), f"Attempted to assign already-assigned {package=} to vehicle={self}"
-        assert (
-            len(self.carrying_package_set) < self.capacity
-        ), f"Adding of {package=} to pickup={self} exceeds capacity={self.capacity}"
+        try:
+            assert (
+                package not in self.carrying_package_set
+            ), f"Attempted to assign already-assigned {package} to {self}"
+        except AssertionError:
+            logger.warning("AssertionError", exc_info=True)
+            return
+
+        try:
+            assert (
+                len(self.carrying_package_set) < self.capacity
+            ), f"Adding of {package} to {self} exceeds capacity={self.capacity}"
+        except AssertionError as e:
+            logger.error("AssertionError", exc_info=True)
+            raise e
+
         self.carrying_package_set.add(package)
         traci.vehicle.setColor(self.id, (0, 255, 0))
+        logger.debug(f"Assigned pickup of {package} to {self}")
 
     def drop_package(self, package: Package) -> None:
-        assert (
-            package.assigned_pickup is not None
-        ), f"Attempted to drop {package=} at unassigned pickup"
+        try:
+            assert (
+                package.assigned_pickup is not None
+            ), f"Attempted to drop {package} at unassigned pickup"
+        except AssertionError as e:
+            logger.error("AssertionError", exc_info=True)
+            raise e
+
         package.assigned_pickup.drop_package(package)
         package.reached_pickup = True
 
         self.carrying_package_set.remove(package)
         traci.vehicle.setColor(self.id, (255, 255, 0))
+        logger.debug(f"Dropped {package} by {self}")
 
-
-def get_vehicle_list() -> list[Vehicle]:
-    return [
-        Vehicle(vehicle_id, VEHICLE_CAPACITY())
-        for vehicle_id in traci.vehicle.getIDList()
-    ]
+    @staticmethod
+    def create_vehicle_list() -> list[Vehicle]:
+        return [
+            Vehicle(vehicle_id, VEHICLE_CAPACITY())
+            for vehicle_id in traci.vehicle.getIDList()
+        ]
