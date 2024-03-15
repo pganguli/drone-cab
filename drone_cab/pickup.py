@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from drone_cab.package import Package
+from drone_cab.drone import Drone, DRONE_CAPACITY
 
 import traci
 
@@ -14,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 
 def PICKUP_CAPACITY():
-    return 2  # random.randint(5, 15)
+    return 3  # random.randint(5, 15)
 
 
 PICKUP_CENTER_LIST = [
@@ -39,8 +40,10 @@ class Pickup:
         self.center = pickup_center
         self.capacity = pickup_capacity
         self.id = f"pickup#{hash(self.center)}"
+        self.drone = None
         self.assigned_package_set: set[Package] = set()
         self.dropped_package_set: set[Package] = set()
+        self.drone_package_set: set[Package] = set()
 
         traci.polygon.add(
             polygonID=self.id,
@@ -57,6 +60,8 @@ class Pickup:
         )
 
         logger.debug(f"Created {self}")
+
+        self.drone = Drone.create_drone(drone_center=pickup_center)
 
         self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
 
@@ -96,9 +101,17 @@ class Pickup:
         self.dropped_package_set.add(package)
         logger.debug(f"Dropped {package} at {self}")
 
+        if len(self.dropped_package_set) == DRONE_CAPACITY():
+            dropped_package_set_copy = self.dropped_package_set.copy()
+            for package in dropped_package_set_copy:
+                self.pickup_package(package)
+
     def pickup_package(self, package: Package) -> None:
         self.dropped_package_set.remove(package)
         logger.debug(f"Picked up {package} from {self}")
+
+        self.drone.assign_package(package)
+        self.drone_package_set.add(package)
 
     @staticmethod
     def create_pickup_list() -> list[Pickup]:

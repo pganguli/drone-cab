@@ -24,13 +24,14 @@ class Package:
     def __init__(self, destination_id: str) -> None:
         self.id = destination_id
         traci.polygon.setColor(self.id, (222, 52, 235))
-
         self.center = shape2centroid(traci.polygon.getShape(self.id))
-        self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
         self.assigned_pickup: Pickup | None = None
         self.reached_pickup: bool = False
         self.reached_destination: bool = False
+
         logger.debug(f"Created {self}")
+
+        self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
 
     def __repr__(self) -> str:
         return f"Package({self.id})"
@@ -87,3 +88,7 @@ class Package:
 
         logger.debug(f"Failed to assign {self} to any vehicle")
         return None
+
+    def package_delivered(self):
+        self.reached_destination = True
+        logger.debug(f"{self} reached destination")

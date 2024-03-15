@@ -25,7 +25,7 @@ class Vehicle:
         self.carrying_package_set: set[Package] = set()
         if self not in Vehicle.vehicle_list:
             Vehicle.vehicle_list.append(self)
-        logger.debug(f"Created {self}")
+            logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
         return f"Vehicle({self.id}, {self.capacity})"
@@ -83,12 +83,12 @@ class Vehicle:
             logger.error("AssertionError", exc_info=True)
             raise e
 
-        package.assigned_pickup.drop_package(package)
-        package.reached_pickup = True
-
         self.carrying_package_set.remove(package)
         traci.vehicle.setColor(self.id, (255, 255, 0))
         logger.debug(f"Dropped {package} by {self}")
+
+        package.assigned_pickup.drop_package(package)
+        package.reached_pickup = True
 
     @staticmethod
     def create_vehicle_list() -> None:
