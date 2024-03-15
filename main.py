@@ -33,10 +33,10 @@ def poll_packages(pickup_list: list[Pickup]):
             if vehicle.get_road_id() == package.assigned_pickup.nearest_edge_id:
                 vehicle.drop_package(package)
 
-    pickup_list = list(filter(lambda pickup: pickup.drone_package_set, pickup_list))
-    for pickup in pickup_list:
-        if pickup.drone.parked == True:
-            pickup.drone.tsp()
+    # pickup_list = list(filter(lambda pickup: pickup.drone_package_set, pickup_list))
+    # for pickup in pickup_list:
+    #     if pickup.drone.parked == True:
+    #         pickup.drone.tsp()
 
 
 if __name__ == "__main__":

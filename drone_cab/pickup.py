@@ -13,7 +13,6 @@ from drone_cab.utils import get_lane_list, get_nearest_edge_id
 
 logger = logging.getLogger(__name__)
 
-
 def PICKUP_CAPACITY():
     return 3  # random.randint(5, 15)
 
@@ -42,8 +41,7 @@ class Pickup:
         self.id = f"pickup#{hash(self.center)}"
         self.drone = None
         self.assigned_package_set: set[Package] = set()
-        self.dropped_package_set: set[Package] = set()
-        self.drone_package_set: set[Package] = set()
+        self.received_package_set: set[Package] = set()
 
         traci.polygon.add(
             polygonID=self.id,
@@ -80,10 +78,10 @@ class Pickup:
         self.assigned_package_set.add(package)
         logger.debug(f"Assigned pickup of {package} to {self}")
 
-    def drop_package(self, package: Package) -> None:
+    def receive_package(self, package: Package) -> None:
         try:
             assert (
-                package not in self.dropped_package_set
+                package not in self.received_package_set
             ), f"Attempted to drop existing {package} at {self}"
         except AssertionError:
             logger.warning("AssertionError", exc_info=True)
@@ -91,27 +89,32 @@ class Pickup:
 
         try:
             assert (
-                len(self.dropped_package_set) < self.capacity
+                len(self.received_package_set) < self.capacity
             ), f"Adding of {package} to {self} exceeds capacity={self.capacity}"
         except AssertionError as e:
             logger.error("AssertionError", exc_info=True)
             raise e
 
         self.assigned_package_set.remove(package)
-        self.dropped_package_set.add(package)
+        self.received_package_set.add(package)
         logger.debug(f"Dropped {package} at {self}")
 
-        if len(self.dropped_package_set) == DRONE_CAPACITY():
-            dropped_package_set_copy = self.dropped_package_set.copy()
-            for package in dropped_package_set_copy:
-                self.pickup_package(package)
-
-    def pickup_package(self, package: Package) -> None:
-        self.dropped_package_set.remove(package)
-        logger.debug(f"Picked up {package} from {self}")
-
-        self.drone.assign_package(package)
-        self.drone_package_set.add(package)
+        if len(self.received_package_set) == DRONE_CAPACITY():
+            self.prepare_drone()
+    
+    def prepare_drone(self):
+        if self.drone.parked:
+            received_package_set_copy = self.received_package_set.copy()
+            for package in received_package_set_copy:
+                self.received_package_set.remove(package)
+                
+                logger.debug(f"Picked up {package} from {self}")
+                
+                self.drone.assign_package(package)
+                # self.drone_package_set.add(package)
+            received_package_set_copy.clear()
+            
+            self.drone.tsp()
 
     @staticmethod
     def create_pickup_list() -> list[Pickup]:

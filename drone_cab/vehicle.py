@@ -87,7 +87,7 @@ class Vehicle:
         traci.vehicle.setColor(self.id, (255, 255, 0))
         logger.debug(f"Dropped {package} by {self}")
 
-        package.assigned_pickup.drop_package(package)
+        package.assigned_pickup.receive_package(package)
         package.reached_pickup = True
 
     @staticmethod

@@ -25,7 +25,7 @@ class Drone:
         self.id = f"drone#{hash(self.center)}"
         self.parked = True
         self.cost = 0
-        self.assigned_package_set: set[Package] = set()
+        self.carrying_package_set: set[Package] = set()
         self.delivered_package_set: set[Package] = set()
 
         logger.debug(f"Created {self}")
@@ -36,13 +36,13 @@ class Drone:
     def assign_package(self, package: Package) -> None:
         try:
             assert (
-                package not in self.assigned_package_set
+                package not in self.carrying_package_set
             ), f"Attempted to assign already-assigned {package} to {self}"
         except AssertionError:
             logger.warning("AssertionError", exc_info=True)
             return
 
-        self.assigned_package_set.add(package)
+        self.carrying_package_set.add(package)
         logger.debug(f"Assigned drone of {package}: {self}")
 
     def tsp(self):
@@ -50,8 +50,7 @@ class Drone:
         self.parked = False
         logger.debug(f"{self} started TSP")
 
-        nodes_to_visit = [self.center] + list(map(lambda x: x.center, self.assigned_package_set))
-        print(nodes_to_visit)
+        nodes_to_visit = [self.center] + list(map(lambda x: x.center, self.carrying_package_set))
         nodes_to_visit = np.array(nodes_to_visit)
 
         dist_matrix = distance_matrix(nodes_to_visit, nodes_to_visit)
@@ -68,10 +67,10 @@ class Drone:
 
         logger.debug(f"{self} completed TSP with cost {cost:.2f} m")
 
-        assigned_package_set_copy = self.assigned_package_set.copy()
-        for package in assigned_package_set_copy:
+        carrying_package_set_copy = self.carrying_package_set.copy()
+        for package in carrying_package_set_copy:
             self.deliver_package(package)
-        assigned_package_set_copy.clear()
+        carrying_package_set_copy.clear()
 
         plt.figure(figsize=(10, 6))
         pos = {}
@@ -98,9 +97,6 @@ class Drone:
         nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels, label_pos=0.25)
 
         labels = {}
-        # labels[0] = "pickup"
-        # for node in list(G.nodes)[1:]:
-        #     labels[node] = "package"
         labels = dict.fromkeys(G.nodes, "package")
         labels[0] = "pickup"
         for i, p in enumerate(pos):
@@ -121,7 +117,7 @@ class Drone:
             logger.warning("AssertionError", exc_info=True)
             return
 
-        self.assigned_package_set.remove(package)
+        self.carrying_package_set.remove(package)
         self.delivered_package_set.add(package)
         logger.debug(f"Delivered {package} by {self}")
 
