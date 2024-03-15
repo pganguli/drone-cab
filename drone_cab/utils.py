@@ -58,10 +58,10 @@ def get_lane_list() -> list[str]:
     return list(filter(lambda id: not id.startswith(":"), traci.lane.getIDList()))
 
 
-def get_building_id_list(polygon_id_list: list[str]) -> list[str]:
+def get_building_id_list() -> list[str]:
     return list(
         filter(
             lambda polygon_id: traci.polygon.getType(polygon_id) == "building",
-            polygon_id_list,
+            traci.polygon.getIDList(),
         )
     )

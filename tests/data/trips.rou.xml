@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<!-- generated on 2024-02-17 23:05:55.392708 by randomTrips.py v1_18_0+1773-9554271d25e
+<configuration>
+    <net-file value="map.net.xml"/>
+    <weights-prefix value="trips"/>
+    <output-trip-file value="trips.rou.xml"/>
+    <intermediate value="1"/>
+    <validate value="True"/>
+    <end value="30.0"/>
+</configuration>
+-->
+
+<!-- generated on 2024-02-17 23:05:55 by Eclipse SUMO duarouter Version v1_18_0+1773-9554271d25e
+<configuration xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/duarouterConfiguration.xsd">
+
+    <input>
+        <net-file value="map.net.xml"/>
+        <route-files value="trips.rou.xml"/>
+    </input>
+
+    <output>
+        <output-file value="trips.rou.xml.tmp"/>
+        <alternatives-output value="NUL"/>
+        <write-trips value="true"/>
+    </output>
+
+    <time>
+        <begin value="0"/>
+        <end value="30.0"/>
+    </time>
+
+    <report>
+        <no-warnings value="true"/>
+        <ignore-errors value="true"/>
+        <no-step-log value="true"/>
+    </report>
+
+</configuration>
+-->
+
+<routes xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="http://sumo.dlr.de/xsd/routes_file.xsd">
+    <trip id="0" depart="0.00" from="158199178#0" to="-158308562#1" via="158320863#6"/>
+    <trip id="2" depart="2.00" from="191363023#8" to="-158496682" via="158320863#6"/>
+    <trip id="3" depart="3.00" from="-158004724" to="-158640620#3" via="158320863#6"/>
+    <trip id="6" depart="6.00" from="158320869#6" to="157973070#0" via="158320863#6"/>
+    <trip id="7" depart="7.00" from="158199997#4" to="-158308032#6" via="158320863#6"/>
+    <trip id="10" depart="10.00" from="158320869#4" to="-158640620#3" via="158320863#6"/>
+    <trip id="12" depart="12.00" from="158496669" to="158199182#5" via="158320863#6"/>
+    <trip id="13" depart="13.00" from="158028079#3" to="-158028052" via="158320863#6"/>
+    <trip id="14" depart="14.00" from="-191363023#0" to="-158028052" via="158320863#6"/>
+    <trip id="15" depart="15.00" from="-191363023#4" to="-158308562#1" via="158320863#6"/>
+    <trip id="16" depart="16.00" from="158184978#3" to="-158496682" via="158320863#6"/>
+    <trip id="18" depart="18.00" from="158199182#1" to="-158308032#6" via="158320863#6"/>
+    <trip id="19" depart="19.00" from="158308042#0" to="-158496682" via="158320863#6"/>
+    <trip id="21" depart="21.00" from="158199995#1" to="157973070#0" via="158320863#6"/>
+    <trip id="22" depart="22.00" from="-191363023#1" to="-158308562#1" via="158320863#6"/>
+    <trip id="25" depart="25.00" from="153681220#2" to="-158496682" via="158320863#6"/>
+    <trip id="27" depart="27.00" from="-191558825#2" to="158199182#5" via="158320863#6"/>
+    <trip id="29" depart="29.00" from="157973066#2" to="-158028052" via="158320863#6"/>
+</routes>
