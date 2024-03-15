@@ -14,8 +14,8 @@ from scipy.spatial import distance_matrix
 logger = logging.getLogger(__name__)
 
 
-def DRONE_CAPACITY():
-    return 3  # random.randint(5, 15)
+def DRONE_CAPACITY() -> int:
+    return 2  # random.randint(5, 15)
 
 
 class Drone:

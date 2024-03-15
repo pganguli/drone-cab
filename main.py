@@ -13,6 +13,10 @@ from drone_cab import Package, Pickup, Vehicle, Warehouse
 logger = logging.getLogger(__name__)
 
 
+def PACKAGE_TIMEOUT() -> float:
+    return 10.0
+
+
 def poll_packages(pickup_list: list[Pickup]):
     Vehicle.create_vehicle_list()
 
@@ -33,10 +37,18 @@ def poll_packages(pickup_list: list[Pickup]):
             if vehicle.get_road_id() == package.assigned_pickup.nearest_edge_id:
                 vehicle.drop_package(package)
 
-    # pickup_list = list(filter(lambda pickup: pickup.drone_package_set, pickup_list))
-    # for pickup in pickup_list:
-    #     if pickup.drone.parked == True:
-    #         pickup.drone.tsp()
+    pickup_list = list(filter(lambda pickup: pickup.received_package_set, pickup_list))
+    for pickup in pickup_list:
+        idle_time = max(
+            map(
+                lambda package: traci.simulation.getTime()
+                - package.reached_pickup_time,
+                pickup.received_package_set,
+            )
+        )
+        if idle_time > PACKAGE_TIMEOUT():
+            logger.warning(f"Package idle time exceeded at {pickup}")
+            pickup.prepare_drone()
 
 
 if __name__ == "__main__":
@@ -66,7 +78,7 @@ if __name__ == "__main__":
     pickup_list = Pickup.create_pickup_list()
     Vehicle.create_vehicle_list()
 
-    package_queue: deque['Package'] = deque()
+    package_queue: deque["Package"] = deque()
     for step in range(200):
         logger.info(f"traci.simulationStep() at {step=}")
 
@@ -82,7 +94,9 @@ if __name__ == "__main__":
             try:
                 pickup = package.assign_package_pickup(pickup_list)
                 assert pickup is not None, f"Failed to assign {package} to any pickup"
-                vehicle = package.assign_package_vehicle(Vehicle.vehicle_list, warehouse)
+                vehicle = package.assign_package_vehicle(
+                    Vehicle.vehicle_list, warehouse
+                )
                 assert vehicle is not None, f"Failed to assign {package} to any vehicle"
             except AssertionError:
                 package_queue.append(package)

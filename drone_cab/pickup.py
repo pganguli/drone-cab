@@ -13,8 +13,8 @@ from drone_cab.utils import get_lane_list, get_nearest_edge_id
 
 logger = logging.getLogger(__name__)
 
-def PICKUP_CAPACITY():
-    return 3  # random.randint(5, 15)
+def PICKUP_CAPACITY() -> int:
+    return 2  # random.randint(5, 15)
 
 
 PICKUP_CENTER_LIST = [
@@ -97,23 +97,23 @@ class Pickup:
 
         self.assigned_package_set.remove(package)
         self.received_package_set.add(package)
+        package.reached_pickup_time = traci.simulation.getTime()
         logger.debug(f"Dropped {package} at {self}")
 
-        if len(self.received_package_set) == DRONE_CAPACITY():
+        if len(self.received_package_set) >= DRONE_CAPACITY():
             self.prepare_drone()
-    
+
     def prepare_drone(self):
         if self.drone.parked:
             received_package_set_copy = self.received_package_set.copy()
             for package in received_package_set_copy:
-                self.received_package_set.remove(package)
-                
-                logger.debug(f"Picked up {package} from {self}")
-                
-                self.drone.assign_package(package)
-                # self.drone_package_set.add(package)
+                if len(self.drone.carrying_package_set) < DRONE_CAPACITY():
+                    self.received_package_set.remove(package)
+                    logger.debug(f"Picked up {package} from {self}")
+
+                    self.drone.assign_package(package)
             received_package_set_copy.clear()
-            
+
             self.drone.tsp()
 
     @staticmethod
