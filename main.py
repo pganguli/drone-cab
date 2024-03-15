@@ -38,7 +38,7 @@ def poll_packages(pickup_list: list[Pickup]):
                 vehicle.drop_package(package)
 
     pickup_list = list(
-        filter(lambda pickup: pickup.assigned_package_set, pickup_list)
+        filter(lambda pickup: pickup.dropped_package_set, pickup_list)
     )
 
     for pickup in pickup_list:
@@ -49,8 +49,8 @@ def droneTSP(pickup: Pickup):
     pickup_cost = 0
 
     nodes_to_visit = [pickup.center]
-    # print(pickup)
-    for package in pickup.dropped_package_set:
+    dropped_packages = pickup.dropped_package_set.copy()
+    for package in dropped_packages:
         nodes_to_visit.append(package.center)
 
     nodes_to_visit = np.array(nodes_to_visit)
