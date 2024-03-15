@@ -17,18 +17,21 @@ def VEHICLE_CAPACITY():
 
 
 class Vehicle:
-
-    created_vehicles = []
+    vehicle_list: list[Vehicle] = []
 
     def __init__(self, vehicle_id: str, vehicle_capacity: int) -> None:
         self.id = vehicle_id
         self.capacity = vehicle_capacity
         self.carrying_package_set: set[Package] = set()
-        Vehicle.created_vehicles.append(self)
-        # logger.debug(f"Created {self}")
+        if self not in Vehicle.vehicle_list:
+            Vehicle.vehicle_list.append(self)
+        logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
         return f"Vehicle({self.id}, {self.capacity})"
+
+    def __eq__(self, other) -> bool:
+        return self.id == other.id
 
     def get_road_id(self) -> str:
         return traci.vehicle.getRoadID(self.id)
@@ -40,9 +43,13 @@ class Vehicle:
         return warehouse.nearest_edge_id in self.get_route_edge_id_list()
 
     def get_distance_along_road(self, point: tuple[float, float]) -> float:
+        x1, y1 = traci.vehicle.getPosition(self.id)
+        x2, y2 = point
         return traci.simulation.getDistance2D(
-            *traci.vehicle.getPosition(self.id),
-            *point,
+            x1,
+            y1,
+            x2,
+            y2,
             isDriving=True,
         )
 
@@ -65,7 +72,7 @@ class Vehicle:
 
         self.carrying_package_set.add(package)
         traci.vehicle.setColor(self.id, (0, 255, 0))
-        logger.debug(f"Assigned vehicle of {package}: {self}")
+        logger.debug(f"Assigned vehicle of {package} to {self}")
 
     def drop_package(self, package: Package) -> None:
         try:
@@ -84,8 +91,6 @@ class Vehicle:
         logger.debug(f"Dropped {package} by {self}")
 
     @staticmethod
-    def create_vehicle_list() -> list[Vehicle]:
-        return [
+    def create_vehicle_list() -> None:
+        for vehicle_id in traci.vehicle.getIDList():
             Vehicle(vehicle_id, VEHICLE_CAPACITY())
-            for vehicle_id in traci.vehicle.getIDList()
-        ]

@@ -1,6 +1,7 @@
 import logging
 import os
 import sys
+from collections import deque
 
 import matplotlib.pyplot as plt
 import networkx as nx
@@ -17,15 +18,14 @@ logger = logging.getLogger(__name__)
 
 
 def poll_packages(pickup_list: list[Pickup]):
-    vehicle_list : list[Vehicle] = list(
-        filter(
-            lambda vehicle: vehicle.carrying_package_set, Vehicle.created_vehicles
-        )
+    Vehicle.create_vehicle_list()
+
+    vehicle_list: list[Vehicle] = list(
+        filter(lambda vehicle: vehicle.carrying_package_set, Vehicle.vehicle_list)
     )
 
     for vehicle in vehicle_list:
-        carrying_package_set_copy = vehicle.carrying_package_set.copy()
-        for package in carrying_package_set_copy:
+        for package in vehicle.carrying_package_set.copy():
             try:
                 assert (
                     package.assigned_pickup is not None
@@ -37,9 +37,7 @@ def poll_packages(pickup_list: list[Pickup]):
             if vehicle.get_road_id() == package.assigned_pickup.nearest_edge_id:
                 vehicle.drop_package(package)
 
-    pickup_list = list(
-        filter(lambda pickup: pickup.dropped_package_set, pickup_list)
-    )
+    pickup_list = list(filter(lambda pickup: pickup.dropped_package_set, pickup_list))
 
     for pickup in pickup_list:
         droneTSP(pickup)
@@ -49,8 +47,7 @@ def droneTSP(pickup: Pickup):
     pickup_cost = 0
 
     nodes_to_visit = [pickup.center]
-    dropped_packages = pickup.dropped_package_set.copy()
-    for package in dropped_packages:
+    for package in pickup.dropped_package_set:
         nodes_to_visit.append(package.center)
 
     nodes_to_visit = np.array(nodes_to_visit)
@@ -58,7 +55,6 @@ def droneTSP(pickup: Pickup):
     dist_matrix = np.round(dist_matrix, decimals=2)
     plt.figure(figsize=(10, 6))
     G = nx.from_numpy_array(dist_matrix)
-    # print(G)
     path = nx.approximation.christofides(G)
     pos = {}
     for node in G.nodes():
@@ -103,7 +99,7 @@ if __name__ == "__main__":
         filename="drone_cab.log",
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         level=logging.DEBUG,
-        filemode="w"
+        filemode="w",
     )
 
     traci.start(
@@ -123,22 +119,30 @@ if __name__ == "__main__":
 
     warehouse = Warehouse(Warehouse.create_warehouse_id())
     pickup_list = Pickup.create_pickup_list()
-    vehicle_list = Vehicle.create_vehicle_list()
+    Vehicle.create_vehicle_list()
 
+    package_queue: deque['Package'] = deque()
     for step in range(200):
-        traci.simulationStep()
         logger.info(f"traci.simulationStep() at {step=}")
 
+        poll_packages(pickup_list)
+
         if step == 30:
-            package_list = [Package("234807099"), Package("239713538"), Package("359039090")]
-            vehicle_list = Vehicle.create_vehicle_list()
-            for package in package_list:
+            package_queue.append(Package("234807099"))
+            package_queue.append(Package("239713538"))
+            package_queue.append(Package("359039090"))
+
+        while package_queue:
+            package = package_queue.popleft()
+            try:
                 pickup = package.assign_package_pickup(pickup_list)
                 assert pickup is not None, f"Failed to assign {package} to any pickup"
-                vehicle = package.assign_package_vehicle(vehicle_list, warehouse)
+                vehicle = package.assign_package_vehicle(Vehicle.vehicle_list, warehouse)
                 assert vehicle is not None, f"Failed to assign {package} to any vehicle"
+            except AssertionError:
+                logger.debug("AssertionError", exc_info=True)
 
-        poll_packages(pickup_list)
+        traci.simulationStep()
 
     traci.close()
     logger.info("traci.close()")

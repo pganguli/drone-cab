@@ -58,8 +58,6 @@ class Pickup:
 
         logger.debug(f"Created {self}")
 
-        Drone.create_drone(drone_center=pickup_center)
-
         self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
 
     def __repr__(self) -> str:
@@ -75,7 +73,7 @@ class Pickup:
             return
 
         self.assigned_package_set.add(package)
-        logger.debug(f"Assigned pickup of {package}: {self}")
+        logger.debug(f"Assigned pickup of {package} to {self}")
 
     def drop_package(self, package: Package) -> None:
         try:
@@ -96,7 +94,6 @@ class Pickup:
 
         self.assigned_package_set.remove(package)
         self.dropped_package_set.add(package)
-        print(self, self.dropped_package_set)
         logger.debug(f"Dropped {package} at {self}")
 
     def pickup_package(self, package: Package) -> None:
