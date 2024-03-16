@@ -72,6 +72,11 @@ class Drone:
             self.deliver_package(package)
         carrying_package_set_copy.clear()
 
+        self.parked = True
+
+        self.display_tsp(G, nodes_to_visit, edgelist)
+
+    def display_tsp(self, G: nx.Graph, nodes_to_visit: list[(float, float)], edgelist: list[(int, int)]):
         plt.figure(figsize=(10, 6))
         pos = {}
         for node in G.nodes():
