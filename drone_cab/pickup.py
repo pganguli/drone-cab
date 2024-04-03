@@ -7,6 +7,8 @@ if TYPE_CHECKING:
     from drone_cab.package import Package
 from drone_cab.drone import Drone, DRONE_CAPACITY
 
+from collections import deque
+
 import traci
 
 from drone_cab.utils import get_lane_list, get_nearest_edge_id
@@ -41,7 +43,7 @@ class Pickup:
         self.id = f"pickup#{hash(self.center)}"
         self.drone = None
         self.assigned_package_set: set[Package] = set()
-        self.received_package_set: set[Package] = set()
+        self.received_package_queue : deque[Package] = deque()
 
         traci.polygon.add(
             polygonID=self.id,
@@ -81,7 +83,7 @@ class Pickup:
     def receive_package(self, package: Package) -> None:
         try:
             assert (
-                package not in self.received_package_set
+                package not in self.received_package_queue
             ), f"Attempted to drop existing {package} at {self}"
         except AssertionError:
             logger.warning("AssertionError", exc_info=True)
@@ -89,30 +91,30 @@ class Pickup:
 
         try:
             assert (
-                len(self.received_package_set) < self.capacity
+                len(self.received_package_queue) < self.capacity
             ), f"Adding of {package} to {self} exceeds capacity={self.capacity}"
         except AssertionError as e:
             logger.error("AssertionError", exc_info=True)
             raise e
 
         self.assigned_package_set.remove(package)
-        self.received_package_set.add(package)
+        self.received_package_queue.append(package)
         package.reached_pickup_time = traci.simulation.getTime()
         logger.debug(f"Dropped {package} at {self}")
 
-        if len(self.received_package_set) >= DRONE_CAPACITY():
+        if len(self.received_package_queue) >= DRONE_CAPACITY():
             self.prepare_drone()
 
     def prepare_drone(self):
         if self.drone.parked:
-            received_package_set_copy = self.received_package_set.copy()
-            for package in received_package_set_copy:
+            received_package_queue_copy = self.received_package_queue.copy()
+            for package in received_package_queue_copy:
                 if len(self.drone.carrying_package_set) < DRONE_CAPACITY():
-                    self.received_package_set.remove(package)
+                    self.received_package_queue.remove(package)
                     logger.debug(f"Picked up {package} from {self}")
 
                     self.drone.assign_package(package)
-            received_package_set_copy.clear()
+            received_package_queue_copy.clear()
 
             self.drone.tsp()
 

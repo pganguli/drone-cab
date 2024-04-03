@@ -37,13 +37,13 @@ def poll_packages(pickup_list: list[Pickup]):
             if vehicle.get_road_id() == package.assigned_pickup.nearest_edge_id:
                 vehicle.drop_package(package)
 
-    pickup_list = list(filter(lambda pickup: pickup.received_package_set, pickup_list))
+    pickup_list = list(filter(lambda pickup: pickup.received_package_queue, pickup_list))
     for pickup in pickup_list:
         idle_time = max(
             map(
                 lambda package: traci.simulation.getTime()
                 - package.reached_pickup_time,
-                pickup.received_package_set,
+                pickup.received_package_queue,
             )
         )
         if idle_time > PACKAGE_TIMEOUT():
@@ -99,7 +99,7 @@ if __name__ == "__main__":
                 )
                 assert vehicle is not None, f"Failed to assign {package} to any vehicle"
             except AssertionError:
-                package_queue.append(package)
+                package_queue.appendleft(package)
                 logger.debug("AssertionError", exc_info=True)
 
         traci.simulationStep()

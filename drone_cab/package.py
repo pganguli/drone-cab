@@ -31,7 +31,7 @@ class Package:
         self.reached_destination: bool = False
         logger.debug(f"Created {self}")
 
-        self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
+        # self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
 
     def __repr__(self) -> str:
         return f"Package({self.id})"
