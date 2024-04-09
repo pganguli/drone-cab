@@ -80,7 +80,11 @@ RESIDENCE_CENTERS = [
 ]
 
 fig = plt.figure(figsize=(100, 100))
-ax = fig.add_subplot(autoscale_on=False, xlim=(-(DRONE_CENTER[0]+150), (DRONE_CENTER[0]+150)), ylim=(-(DRONE_CENTER[1]+150), (DRONE_CENTER[1]+150)))
+ax = fig.add_subplot(
+    autoscale_on=False,
+    xlim=(DRONE_CENTER[0] - 150, DRONE_CENTER[0] + 150),
+    ylim=(DRONE_CENTER[1] - 150, DRONE_CENTER[1] + 150),
+)
 ax.set_aspect("equal")
 ax.grid()
 
