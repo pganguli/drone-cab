@@ -4,6 +4,10 @@ import matplotlib.pyplot as plt
 import numpy as np
 import networkx as nx
 
+#
+# Constants for experiment setup
+#
+
 DRONE_CENTER = (908.783925, 987.6503665714287)
 DRONE_SPEED = 2
 DRONE_RANGE = 200
@@ -79,6 +83,10 @@ RESIDENCE_CENTERS = [
     (959.8089497999999, 905.2383588),
 ]
 
+#
+# Matplotlib plot setup
+#
+
 fig = plt.figure(figsize=(100, 100))
 ax = fig.add_subplot(
     autoscale_on=False,
@@ -91,14 +99,19 @@ ax.grid()
 dt = 0.01  # seconds between frames
 time_text = ax.text(x=0.01, y=0.95, s="", transform=ax.transAxes)
 
+#
+# Plot objects setup
+#
+
 ax.add_artist(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
 for x, y in RESIDENCE_CENTERS:
     ax.add_artist(plt.Circle(xy=(x, y), radius=1, color="blue"))
 (drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
 (trace,) = ax.plot([], [], lw=1, color="black")
 
-x, y = DRONE_CENTER
-history_x, history_y = [x], [y]
+#
+# Drone path (visit order) setup
+#
 
 G = nx.Graph()
 G.add_node(DRONE_CENTER)
@@ -114,17 +127,42 @@ G.add_weighted_edges_from(
 )
 path = nx.algorithms.approximation.christofides(G)
 path_iter = iter(path)
-target_x, target_y = next(path_iter)
+
+#
+# Drone step function
+#
+
+x, y = next(path_iter)
+assert (
+    (x, y) == DRONE_CENTER
+), f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
+target_x, target_y = x, y
+history_x, history_y = [], []
 
 
 def update(i):
     global x, y, target_x, target_y
 
-    if x == target_x and y == target_y:
+    #
+    # Drone history trace record
+    #
+
+    history_x.append(x)
+    history_y.append(y)
+
+    drone.set_data([history_x[i]], [history_y[i]])
+    trace.set_data(history_x[:i], history_y[:i])
+
+    # Drone reached current target; set next target
+    if (x, y) == (target_x, target_y):
         try:
             target_x, target_y = next(path_iter)
         except StopIteration:
             return drone, trace, time_text
+
+    #
+    # Drone step towards current target
+    #
 
     dist_left = euclidean_distance((x, y), (target_x, target_y))
     theta = np.arctan(np.abs((target_y - y)) / np.abs((target_x - x)))
@@ -138,12 +176,6 @@ def update(i):
         y += min(DRONE_SPEED, dist_left) * (np.sin(theta))
     else:
         y -= min(DRONE_SPEED, dist_left) * (np.sin(theta))
-
-    history_x.append(x)
-    history_y.append(y)
-
-    drone.set_data([history_x[i]], [history_y[i]])
-    trace.set_data(history_x[:i], history_y[:i])
 
     time_text.set_text(f"time = {i * dt:.1f}s")
 
