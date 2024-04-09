@@ -82,8 +82,8 @@ RESIDENCE_CENTERS = [
 fig = plt.figure(figsize=(100, 100))
 ax = fig.add_subplot(
     autoscale_on=False,
-    xlim=(DRONE_CENTER[0] - 150, DRONE_CENTER[0] + 150),
-    ylim=(DRONE_CENTER[1] - 150, DRONE_CENTER[1] + 150),
+    xlim=(DRONE_CENTER[0] - DRONE_RANGE // 2, DRONE_CENTER[0] + DRONE_RANGE // 2),
+    ylim=(DRONE_CENTER[1] - DRONE_RANGE // 2, DRONE_CENTER[1] + DRONE_RANGE // 2),
 )
 ax.set_aspect("equal")
 ax.grid()
@@ -91,6 +91,7 @@ ax.grid()
 dt = 0.01  # seconds between frames
 time_text = ax.text(x=0.01, y=0.95, s="", transform=ax.transAxes)
 
+ax.add_artist(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
 for x, y in RESIDENCE_CENTERS:
     ax.add_artist(plt.Circle(xy=(x, y), radius=1, color="blue"))
 (drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
