@@ -97,7 +97,8 @@ ax.set_aspect("equal")
 ax.grid()
 
 dt = 0.01  # seconds between frames
-time_text = ax.text(x=0.01, y=0.95, s="", transform=ax.transAxes)
+time_text = ax.text(x=0.01, y=0.97, s="", transform=ax.transAxes)
+distance_text = ax.text(x=0.01, y=0.94, s="", transform=ax.transAxes)
 
 #
 # Plot objects setup
@@ -138,10 +139,11 @@ assert (
 ), f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
 target_x, target_y = x, y
 history_x, history_y = [], []
+distance_travelled = 0
 
 
 def update(i):
-    global x, y, target_x, target_y
+    global x, y, target_x, target_y, distance_travelled
 
     #
     # Drone history trace record
@@ -158,28 +160,23 @@ def update(i):
         try:
             target_x, target_y = next(path_iter)
         except StopIteration:
-            return drone, trace, time_text
+            return drone, trace, time_text, distance_text
 
     #
     # Drone step towards current target
     #
 
     dist_left = euclidean_distance((x, y), (target_x, target_y))
+    distance_step = min(DRONE_SPEED, dist_left)
     theta = np.arctan(np.abs((target_y - y)) / np.abs((target_x - x)))
+    x += distance_step * (np.cos(theta)) * (1 if x < target_x else -1)
+    y += distance_step * (np.sin(theta)) * (1 if y < target_y else -1)
+    distance_travelled += distance_step
 
-    if x < target_x:
-        x += min(DRONE_SPEED, dist_left) * (np.cos(theta))
-    else:
-        x -= min(DRONE_SPEED, dist_left) * (np.cos(theta))
+    time_text.set_text(f"time = {i * dt:.2f}s")
+    distance_text.set_text(f"distance = {distance_travelled:.2f}")
 
-    if y < target_y:
-        y += min(DRONE_SPEED, dist_left) * (np.sin(theta))
-    else:
-        y -= min(DRONE_SPEED, dist_left) * (np.sin(theta))
-
-    time_text.set_text(f"time = {i * dt:.1f}s")
-
-    return drone, trace, time_text
+    return drone, trace, time_text, distance_text
 
 
 anim = animation.FuncAnimation(

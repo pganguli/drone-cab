@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "drone-cab"
+version = "0.1.0"
+description = ""
+authors = ["Prateek Ganguli <prateek.ganguli@gmail.com>", "Vatsal Dadia <vatsaldadiavd@gmail.com>"]
+readme = "README.md"
+packages = [{include = "drone_cab"}]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+numpy = "^1.26.4"
+matplotlib = "^3.8.4"
+networkx = "^3.3"
+traci = "^1.19.0"
+scipy = "^1.13.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
