@@ -85,7 +85,7 @@ RESIDENCE_CENTERS = [
     (844.6615038, 915.2693621999999),
     (959.8089497999999, 905.2383588),
 ]
-RESIDENCE_CENTERS = RESIDENCE_CENTERS[:25]
+RESIDENCE_CENTERS = RESIDENCE_CENTERS[:30]
 
 #
 # Matplotlib plot setup
@@ -108,26 +108,24 @@ distance_text = ax.text(x=0.01, y=0.94, s="", transform=ax.transAxes)
 # Plot objects setup
 #
 
-ax.add_artist(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
 farthest_residence = max(
     RESIDENCE_CENTERS,
     key=lambda residence_center: euclidean_distance(DRONE_CENTER, residence_center),
 )
 radius = euclidean_distance(DRONE_CENTER, farthest_residence)
 theta = DRONE_RANGE / radius - 2
-for x, y in RESIDENCE_CENTERS:
-    c = "red" if (x, y) == farthest_residence else "blue"
-    ax.add_artist(plt.Circle(xy=(x, y), radius=1, color=c))
+
 farthest_distance = ax.plot(
     (DRONE_CENTER[0], farthest_residence[0]),
     (DRONE_CENTER[1], farthest_residence[1]),
     linestyle="--",
     color="orange",
 )
-(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
+
 farthest_residence_angle = math.atan2(
     farthest_residence[1] - DRONE_CENTER[1], farthest_residence[0] - DRONE_CENTER[0]
 )
+
 sector = Wedge(
     DRONE_CENTER,
     radius,
@@ -137,7 +135,28 @@ sector = Wedge(
     color="orange",
 )
 ax.add_patch(sector)
+
+(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
+ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
+
 (trace,) = ax.plot([], [], lw=1, color="black")
+
+for residence in RESIDENCE_CENTERS:
+    ax.add_patch(
+        plt.Circle(
+            xy=residence,
+            radius=1,
+            color=(
+                "red"
+                if residence == farthest_residence
+                else (
+                    "magenta"
+                    if sector.contains_point(ax.transData.transform(residence))
+                    else "blue"
+                )
+            ),
+        )
+    )
 
 #
 # Drone path (visit order) setup
@@ -146,7 +165,8 @@ ax.add_patch(sector)
 G = nx.Graph()
 G.add_node(DRONE_CENTER)
 for residence in RESIDENCE_CENTERS:
-    G.add_node(residence)
+    if sector.contains_point(ax.transData.transform(residence)):
+        G.add_node(residence)
 G.add_weighted_edges_from(
     [
         (node_i, node_j, euclidean_distance(node_i, node_j))
@@ -164,8 +184,11 @@ path_iter = iter(path)
 
 x, y = next(path_iter)
 assert (
-    (x, y) == DRONE_CENTER
-), f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
+    x,
+    y,
+) == DRONE_CENTER, (
+    f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
+)
 target_x, target_y = x, y
 history_x, history_y = [], []
 distance_travelled = 0
