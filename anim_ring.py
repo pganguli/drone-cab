@@ -121,42 +121,37 @@ farthest_distance = ax.plot(
     linestyle="--",
     color="orange",
 )
-
 farthest_residence_angle = math.atan2(
     farthest_residence[1] - DRONE_CENTER[1], farthest_residence[0] - DRONE_CENTER[0]
 )
 
 sector = Wedge(
-    DRONE_CENTER,
-    radius,
-    math.degrees(farthest_residence_angle - theta / 2),
-    math.degrees(farthest_residence_angle + theta / 2),
+    center=DRONE_CENTER,
+    r=radius,
+    theta1=math.degrees(farthest_residence_angle - theta / 2),
+    theta2=math.degrees(farthest_residence_angle + theta / 2),
     alpha=0.25,
     color="orange",
 )
 ax.add_patch(sector)
-
-(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
-ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
-
-(trace,) = ax.plot([], [], lw=1, color="black")
 
 for residence in RESIDENCE_CENTERS:
     ax.add_patch(
         plt.Circle(
             xy=residence,
             radius=1,
-            color=(
-                "red"
-                if residence == farthest_residence
-                else (
-                    "magenta"
-                    if sector.contains_point(ax.transData.transform(residence))
-                    else "blue"
-                )
-            ),
+            color="red"
+            if residence == farthest_residence
+            else "magenta"
+            if sector.contains_point(ax.transData.transform(residence))
+            else "blue",
         )
     )
+
+(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
+ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
+
+(trace,) = ax.plot([], [], lw=1, color="black")
 
 #
 # Drone path (visit order) setup
@@ -184,11 +179,8 @@ path_iter = iter(path)
 
 x, y = next(path_iter)
 assert (
-    x,
-    y,
-) == DRONE_CENTER, (
-    f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
-)
+    (x, y) == DRONE_CENTER
+), f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
 target_x, target_y = x, y
 history_x, history_y = [], []
 distance_travelled = 0

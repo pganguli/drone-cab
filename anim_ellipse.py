@@ -10,9 +10,29 @@ from scipy.optimize import fsolve
 from drone_cab.utils import euclidean_distance
 
 
-def ellipse_perimeter(major_axis: float, minor_axis: float) -> float:
+def ellipse_perimeter(
+    major_axis: float, minor_axis: float, approx: bool = False
+) -> float:
     if major_axis < minor_axis:
         major_axis, minor_axis = minor_axis, major_axis
+
+    if approx:
+        comb2_half_n = [
+            1 / 4,
+            1 / 64,
+            1 / 256,
+            25 / 16384,
+            49 / 65536,
+            441 / 1048576,
+            1089 / 4194304,
+        ]
+
+        h = (major_axis - minor_axis) / (major_axis + minor_axis)
+        summation = 1
+        for coef in comb2_half_n:
+            h *= h
+            summation += coef * h
+        return (math.pi / 2) * (major_axis + minor_axis) * summation
 
     e2 = 1 - (minor_axis / major_axis) ** 2
 
@@ -23,11 +43,14 @@ def ellipse_perimeter(major_axis: float, minor_axis: float) -> float:
     return 2 * major_axis * integral
 
 
-def find_minor_axis(major_axis: float, desired_perimeter: float) -> float:
+def find_minor_axis(
+    major_axis: float, desired_perimeter: float, approx: bool = False
+) -> float:
+    initial_guess = math.sqrt((desired_perimeter**2) / 4 - (major_axis) ** 2)
     return fsolve(
-        lambda minor_axis: ellipse_perimeter(major_axis, minor_axis)
+        func=lambda minor_axis: ellipse_perimeter(major_axis, minor_axis, approx)
         - desired_perimeter,
-        0.5 * major_axis,
+        x0=initial_guess,
     )[0]
 
 
@@ -152,7 +175,7 @@ sector = Ellipse(
         (DRONE_CENTER[1] + farthest_residence[1]) / 2,
     ),
     width=major_axis,
-    height=find_minor_axis(major_axis, DRONE_RANGE) - DRONE_RANGE * 0.05,
+    height=find_minor_axis(major_axis, DRONE_RANGE, approx=True) - DRONE_RANGE * 0.07,
     angle=math.degrees(farthest_residence_angle),
     alpha=0.25,
     color="orange",
