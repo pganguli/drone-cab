@@ -170,9 +170,9 @@ def update(i):
 
     dist_left = euclidean_distance((x, y), (target_x, target_y))
     distance_step = min(DRONE_SPEED, dist_left)
-    theta = math.atan(abs((target_y - y)) / abs((target_x - x)))
-    x += distance_step * (math.cos(theta)) * (1 if x < target_x else -1)
-    y += distance_step * (math.sin(theta)) * (1 if y < target_y else -1)
+    theta = math.atan2(target_y - y, target_x - x)
+    x += distance_step * math.cos(theta)
+    y += distance_step * math.sin(theta)
     distance_travelled += distance_step
 
     time_text.set_text(f"time = {i * dt:.2f}s")
