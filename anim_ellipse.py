@@ -3,8 +3,33 @@ import math
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 import networkx as nx
+from matplotlib.patches import Ellipse
+from scipy.integrate import quad
+from scipy.optimize import fsolve
 
 from drone_cab.utils import euclidean_distance
+
+
+def ellipse_perimeter(major_axis: float, minor_axis: float) -> float:
+    if major_axis < minor_axis:
+        major_axis, minor_axis = minor_axis, major_axis
+
+    e2 = 1 - (minor_axis / major_axis) ** 2
+
+    def integrand(theta):
+        return math.sqrt(1 - e2 * math.sin(theta) ** 2)
+
+    integral, _ = quad(func=integrand, a=0, b=math.pi / 2, epsrel=1e-2)
+    return 2 * major_axis * integral
+
+
+def find_minor_axis(major_axis: float, desired_perimeter: float) -> float:
+    return fsolve(
+        lambda minor_axis: ellipse_perimeter(major_axis, minor_axis)
+        - desired_perimeter,
+        0.5 * major_axis,
+    )[0]
+
 
 #
 # Constants for experiment setup
@@ -106,8 +131,46 @@ distance_text = ax.text(x=0.01, y=0.94, s="", transform=ax.transAxes)
 # Plot objects setup
 #
 
+farthest_residence = max(
+    RESIDENCE_CENTERS,
+    key=lambda residence_center: euclidean_distance(DRONE_CENTER, residence_center),
+)
+farthest_distance = ax.plot(
+    (DRONE_CENTER[0], farthest_residence[0]),
+    (DRONE_CENTER[1], farthest_residence[1]),
+    linestyle="--",
+    color="orange",
+)
+farthest_residence_angle = math.atan2(
+    farthest_residence[1] - DRONE_CENTER[1], farthest_residence[0] - DRONE_CENTER[0]
+)
+major_axis = euclidean_distance(DRONE_CENTER, farthest_residence)
+
+sector = Ellipse(
+    xy=(
+        (DRONE_CENTER[0] + farthest_residence[0]) / 2,
+        (DRONE_CENTER[1] + farthest_residence[1]) / 2,
+    ),
+    width=major_axis,
+    height=find_minor_axis(major_axis, DRONE_RANGE) - DRONE_RANGE * 0.05,
+    angle=math.degrees(farthest_residence_angle),
+    alpha=0.25,
+    color="orange",
+)
+ax.add_patch(sector)
+
 for residence in RESIDENCE_CENTERS:
-    ax.add_patch(plt.Circle(xy=residence, radius=1, color="blue"))
+    ax.add_patch(
+        plt.Circle(
+            xy=residence,
+            radius=1,
+            color="red"
+            if residence == farthest_residence
+            else "magenta"
+            if sector.contains_point(ax.transData.transform(residence))
+            else "blue",
+        )
+    )
 
 (drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
 ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
@@ -121,7 +184,8 @@ ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
 G = nx.Graph()
 G.add_node(DRONE_CENTER)
 for residence in RESIDENCE_CENTERS:
-    G.add_node(residence)
+    if sector.contains_point(ax.transData.transform(residence)):
+        G.add_node(residence)
 G.add_weighted_edges_from(
     [
         (node_i, node_j, euclidean_distance(node_i, node_j))
