@@ -1,14 +1,11 @@
 import math
-import random
 
-from matplotlib.transforms import Affine2D
-
-from drone_cab.utils import euclidean_distance
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
-from matplotlib.patches import Wedge, Rectangle
-import numpy as np
 import networkx as nx
+from matplotlib.patches import Wedge
+
+from drone_cab.utils import euclidean_distance
 
 #
 # Constants for experiment setup
@@ -88,19 +85,7 @@ RESIDENCE_CENTERS = [
     (844.6615038, 915.2693621999999),
     (959.8089497999999, 905.2383588),
 ]
-
-# random.seed(1)
-# random.shuffle(RESIDENCE_CENTERS)
 RESIDENCE_CENTERS = RESIDENCE_CENTERS[:30]
-
-radius = 0
-for i in RESIDENCE_CENTERS:
-    dist = euclidean_distance(i, DRONE_CENTER)
-    if dist > radius:
-        radius = dist
-        farthest_residence = i
-
-theta = ((DRONE_RANGE) / radius) - 2
 
 #
 # Matplotlib plot setup
@@ -109,76 +94,50 @@ theta = ((DRONE_RANGE) / radius) - 2
 fig = plt.figure(figsize=(100, 100))
 ax = fig.add_subplot(
     autoscale_on=False,
-    # xlim=(DRONE_CENTER[0] - DRONE_RANGE // 2, DRONE_CENTER[0] + DRONE_RANGE // 2),
-    # ylim=(DRONE_CENTER[1] - DRONE_RANGE // 2, DRONE_CENTER[1] + DRONE_RANGE // 2),
-    # xlim=(
-    #     min(map(lambda x: x[0], RESIDENCE_CENTERS)) - 20,
-    #     max(map(lambda x: x[0], RESIDENCE_CENTERS)) + 20,
-    # ),
-    # ylim=(
-    #     min(map(lambda x: x[1], RESIDENCE_CENTERS)) - 20,
-    #     max(map(lambda x: x[1], RESIDENCE_CENTERS)) + 20,
-    # ),
+    xlim=(DRONE_CENTER[0] - DRONE_RANGE // 2, DRONE_CENTER[0] + DRONE_RANGE // 2),
+    ylim=(DRONE_CENTER[1] - DRONE_RANGE // 2, DRONE_CENTER[1] + DRONE_RANGE // 2),
 )
 ax.set_aspect("equal")
 ax.grid()
 
 dt = 0.01  # seconds between frames
-time_text = ax.text(x=0.01, y=0.95, s="", transform=ax.transAxes)
-
-# transform = Affine2D.from_values(1, 0, 0, 1, 0, 0)
-# transform = Affine2D.from_values(
-#     math.cos(math.pi / 2),
-#     math.sin(math.pi / 2),
-#     -math.sin(math.pi / 2),
-#     math.cos(math.pi / 2),
-#     ax.get_xlim()[0],
-#     ax.get_ylim()[0],
-# )
+time_text = ax.text(x=0.01, y=0.97, s="", transform=ax.transAxes)
+distance_text = ax.text(x=0.01, y=0.94, s="", transform=ax.transAxes)
 
 #
 # Plot objects setup
 #
 
-
 ax.add_artist(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
+farthest_residence = max(
+    RESIDENCE_CENTERS,
+    key=lambda residence_center: euclidean_distance(DRONE_CENTER, residence_center),
+)
+radius = euclidean_distance(DRONE_CENTER, farthest_residence)
+theta = DRONE_RANGE / radius - 2
 for x, y in RESIDENCE_CENTERS:
-    c = "blue"
-    if (x, y) == farthest_residence:
-        c = "red"
+    c = "red" if (x, y) == farthest_residence else "blue"
     ax.add_artist(plt.Circle(xy=(x, y), radius=1, color=c))
-
-(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
-
 farthest_distance = ax.plot(
     (DRONE_CENTER[0], farthest_residence[0]),
     (DRONE_CENTER[1], farthest_residence[1]),
     linestyle="--",
     color="orange",
 )
-
-sector = Wedge(DRONE_CENTER, radius, 0, math.degrees(theta), alpha=0.25, color="orange")
+(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
+farthest_residence_angle = math.pi + math.atan(
+    abs(farthest_residence[1] - DRONE_CENTER[1])
+    / abs(farthest_residence[0] - DRONE_CENTER[0])
+)
+sector = Wedge(
+    DRONE_CENTER,
+    radius,
+    math.degrees(farthest_residence_angle - theta / 2),
+    math.degrees(farthest_residence_angle + theta / 2),
+    alpha=0.25,
+    color="orange",
+)
 ax.add_patch(sector)
-
-r1 = Rectangle(DRONE_CENTER, 20, 40, color="blue", alpha=0.50)
-r2 = Rectangle(DRONE_CENTER, 2000, 4000, color="red", alpha=0.50)
-
-t2 = Affine2D().rotate_deg(-45) + ax.transData
-r2.set_transform(t2)
-
-ax.add_patch(r1)
-ax.add_patch(r2)
-
-plt.xlim(
-    min(map(lambda x: x[0], RESIDENCE_CENTERS)) - 20,
-    max(map(lambda x: x[0], RESIDENCE_CENTERS)) + 20,
-)
-plt.ylim(
-    min(map(lambda x: x[1], RESIDENCE_CENTERS)) - 20,
-    max(map(lambda x: x[1], RESIDENCE_CENTERS)) + 20,
-)
-
-
 (trace,) = ax.plot([], [], lw=1, color="black")
 
 #
@@ -206,17 +165,15 @@ path_iter = iter(path)
 
 x, y = next(path_iter)
 assert (
-    x,
-    y,
-) == DRONE_CENTER, (
-    f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
-)
+    (x, y) == DRONE_CENTER
+), f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
 target_x, target_y = x, y
 history_x, history_y = [], []
+distance_travelled = 0
 
 
 def update(i):
-    global x, y, target_x, target_y
+    global x, y, target_x, target_y, distance_travelled
 
     #
     # Drone history trace record
@@ -233,28 +190,23 @@ def update(i):
         try:
             target_x, target_y = next(path_iter)
         except StopIteration:
-            return drone, trace, time_text
+            return drone, trace, time_text, distance_text
 
     #
     # Drone step towards current target
     #
 
     dist_left = euclidean_distance((x, y), (target_x, target_y))
-    theta = np.arctan(np.abs((target_y - y)) / np.abs((target_x - x)))
+    distance_step = min(DRONE_SPEED, dist_left)
+    theta = math.atan(abs((target_y - y)) / abs((target_x - x)))
+    x += distance_step * (math.cos(theta)) * (1 if x < target_x else -1)
+    y += distance_step * (math.sin(theta)) * (1 if y < target_y else -1)
+    distance_travelled += distance_step
 
-    if x < target_x:
-        x += min(DRONE_SPEED, dist_left) * (np.cos(theta))
-    else:
-        x -= min(DRONE_SPEED, dist_left) * (np.cos(theta))
+    time_text.set_text(f"time = {i * dt:.2f}s")
+    distance_text.set_text(f"distance = {distance_travelled:.2f}")
 
-    if y < target_y:
-        y += min(DRONE_SPEED, dist_left) * (np.sin(theta))
-    else:
-        y -= min(DRONE_SPEED, dist_left) * (np.sin(theta))
-
-    time_text.set_text(f"time = {i * dt:.1f}s")
-
-    return drone, trace, time_text
+    return drone, trace, time_text, distance_text
 
 
 anim = animation.FuncAnimation(
