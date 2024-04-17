@@ -3,6 +3,8 @@ import os
 import sys
 from collections import deque
 
+from drone_cab.drone import DRONE_TIMEOUT
+
 
 if "SUMO_HOME" in os.environ:
     sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
@@ -11,10 +13,6 @@ import traci
 from drone_cab import Package, Pickup, Vehicle, Warehouse
 
 logger = logging.getLogger(__name__)
-
-
-def PACKAGE_TIMEOUT() -> float:
-    return 10.0
 
 
 def poll_packages(pickup_list: list[Pickup]):
@@ -37,18 +35,22 @@ def poll_packages(pickup_list: list[Pickup]):
             if vehicle.get_road_id() == package.assigned_pickup.nearest_edge_id:
                 vehicle.drop_package(package)
 
-    pickup_list = list(filter(lambda pickup: pickup.received_package_queue, pickup_list))
+    pickup_list = list(filter(lambda pickup: pickup.received_package_set, pickup_list))
     for pickup in pickup_list:
-        idle_time = max(
-            map(
-                lambda package: traci.simulation.getTime()
-                - package.reached_pickup_time,
-                pickup.received_package_queue,
-            )
-        )
-        if idle_time > PACKAGE_TIMEOUT():
-            logger.warning(f"Package idle time exceeded at {pickup}")
+        if pickup.drone.timer > DRONE_TIMEOUT() and pickup.drone.parked:
             pickup.prepare_drone()
+        else:
+            pickup.drone.timer += 1
+    #     idle_time = max(
+    #         map(
+    #             lambda package: traci.simulation.getTime()
+    #             - package.reached_pickup_time,
+    #             pickup.received_package_set,
+    #         )
+    #     )
+    #     if idle_time > PACKAGE_TIMEOUT():
+    #         logger.warning(f"Package idle time exceeded at {pickup}")
+    #         pickup.prepare_drone()
 
 
 if __name__ == "__main__":

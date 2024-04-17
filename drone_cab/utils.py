@@ -34,19 +34,19 @@ def get_nearest_edge_id(polygon_id: str, lane_id_list: list[str]) -> str:
     )
     nearest_lane_center = shape2centroid(traci.lane.getShape(nearest_lane_id))
 
-    traci.polygon.add(
-        polygonID=f"edge#{nearest_lane_id}",
-        shape=[
-            (nearest_lane_center[0], nearest_lane_center[1]),
-            (nearest_lane_center[0] + 10, nearest_lane_center[1]),
-            (nearest_lane_center[0] + 10, nearest_lane_center[1] + 10),
-            (nearest_lane_center[0], nearest_lane_center[1] + 10),
-            (nearest_lane_center[0], nearest_lane_center[1]),
-        ],
-        color=[0, 255, 0],
-        polygonType="edge",
-        fill=True,
-    )
+    # traci.polygon.add(
+    #     polygonID=f"edge#{nearest_lane_id}",
+    #     shape=[
+    #         (nearest_lane_center[0], nearest_lane_center[1]),
+    #         (nearest_lane_center[0] + 10, nearest_lane_center[1]),
+    #         (nearest_lane_center[0] + 10, nearest_lane_center[1] + 10),
+    #         (nearest_lane_center[0], nearest_lane_center[1] + 10),
+    #         (nearest_lane_center[0], nearest_lane_center[1]),
+    #     ],
+    #     color=[0, 255, 0],
+    #     polygonType="edge",
+    #     fill=True,
+    # )
 
     nearest_edge_id = traci.lane.getEdgeID(nearest_lane_id)
 

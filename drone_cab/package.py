@@ -27,7 +27,7 @@ class Package:
         self.center = shape2centroid(traci.polygon.getShape(self.id))
         self.assigned_pickup: Pickup | None = None
         self.reached_pickup: bool = False
-        self.reached_pickup_time = 0
+        # self.reached_pickup_time = 0
         self.reached_destination: bool = False
         logger.debug(f"Created {self}")
 

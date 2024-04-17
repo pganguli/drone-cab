@@ -1,7 +1,13 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import TYPE_CHECKING
+
+from matplotlib.patches import Wedge
+from matplotlib.pylab import ArrayLike
+
+from drone_cab.utils import euclidean_distance
 
 if TYPE_CHECKING:
     from drone_cab.package import Package
@@ -18,15 +24,23 @@ def DRONE_CAPACITY() -> int:
     return 2  # random.randint(5, 15)
 
 
+def DRONE_TIMEOUT() -> int:
+    return 30
+
+
 class Drone:
     def __init__(self, drone_center: tuple[float, float], drone_capacity: int) -> None:
         self.center = drone_center
         self.capacity = drone_capacity
+        self.speed = 2
+        self.range = 200
         self.id = f"drone#{hash(self.center)}"
         self.parked = True
         self.cost = 0
+        self.timer = 0
         self.carrying_package_set: set[Package] = set()
-        self.delivered_package_set: set[Package] = set()
+        # self.delivered_package_set: set[Package] = set()
+        self.sector = None
 
         logger.debug(f"Created {self}")
 
@@ -45,12 +59,46 @@ class Drone:
         self.carrying_package_set.add(package)
         logger.debug(f"Assigned drone of {package}: {self}")
 
+    def define_route(self) -> list:
+        G = nx.Graph()
+        G.add_node(self.center)
+        for package in self.carrying_package_set:
+            G.add_node(package.center)
+        G.add_weighted_edges_from(
+            [
+                (node_i, node_j, euclidean_distance(node_i, node_j))
+                for node_i in G.nodes
+                for node_j in G.nodes
+                if node_i != node_j
+            ]
+        )
+
+        route = nx.algorithms.approximation.christofides(G)
+        return(list(route))
+        # self.start_route()
+        path_iter = iter(path)
+
+    def start_route(self) -> None:
+        route = self.define_route()
+        route_iter = iter(route)
+        x, y = next(route_iter)
+        assert (
+            (x, y) == self.center
+        ), f"Drone attempted to take off from {(x, y)} instead of {self.center=}"
+        target_x, target_y = x, y
+        history_x, history_y = [], []
+        distance_travelled = 0
+
+
+
     def tsp(self):
         cost = 0
         self.parked = False
         logger.debug(f"{self} started TSP")
 
-        nodes_to_visit = [self.center] + list(map(lambda x: x.center, self.carrying_package_set))
+        nodes_to_visit = [self.center] + list(
+            map(lambda x: x.center, self.carrying_package_set)
+        )
         nodes_to_visit = np.array(nodes_to_visit)
 
         dist_matrix = distance_matrix(nodes_to_visit, nodes_to_visit)
@@ -74,15 +122,22 @@ class Drone:
 
         self.parked = True
 
-        self.display_tsp(G, nodes_to_visit, edgelist)
+        # self.display_tsp(G, nodes_to_visit, edgelist)
 
-    def display_tsp(self, G: nx.Graph, nodes_to_visit: list[(float, float)], edgelist: list[(int, int)]):
+    def display_tsp(
+        self,
+        G: nx.Graph,
+        nodes_to_visit: list[(float, float)],
+        edgelist: list[(int, int)],
+    ):
         plt.figure(figsize=(10, 6))
         pos = {}
         for node in G.nodes():
             pos[node] = [nodes_to_visit[node, 0], nodes_to_visit[node, 1]]
         nx.draw_networkx_nodes(G, pos=pos, nodelist=[0], node_color="#ff0000")
-        nx.draw_networkx_nodes(G, pos=pos, nodelist=list(G.nodes)[1:], node_color="#df34eb")
+        nx.draw_networkx_nodes(
+            G, pos=pos, nodelist=list(G.nodes)[1:], node_color="#df34eb"
+        )
 
         nx.draw_networkx_edges(
             G,
@@ -99,7 +154,9 @@ class Drone:
         )
 
         edge_labels = nx.get_edge_attributes(G, "weight")
-        nx.draw_networkx_edge_labels(G, pos=pos, edge_labels=edge_labels, label_pos=0.25)
+        nx.draw_networkx_edge_labels(
+            G, pos=pos, edge_labels=edge_labels, label_pos=0.25
+        )
 
         labels = {}
         labels = dict.fromkeys(G.nodes, "package")

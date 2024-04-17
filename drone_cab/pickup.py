@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 import logging
+import math
 from typing import TYPE_CHECKING
+
+from matplotlib.patches import Wedge
 
 if TYPE_CHECKING:
     from drone_cab.package import Package
@@ -11,7 +14,7 @@ from collections import deque
 
 import traci
 
-from drone_cab.utils import get_lane_list, get_nearest_edge_id
+from drone_cab.utils import euclidean_distance, get_lane_list, get_nearest_edge_id
 
 logger = logging.getLogger(__name__)
 
@@ -43,7 +46,7 @@ class Pickup:
         self.id = f"pickup#{hash(self.center)}"
         self.drone = None
         self.assigned_package_set: set[Package] = set()
-        self.received_package_queue : deque[Package] = deque()
+        self.received_package_set: set[Package] = set()
 
         traci.polygon.add(
             polygonID=self.id,
@@ -83,7 +86,7 @@ class Pickup:
     def receive_package(self, package: Package) -> None:
         try:
             assert (
-                package not in self.received_package_queue
+                package not in self.received_package_set
             ), f"Attempted to drop existing {package} at {self}"
         except AssertionError:
             logger.warning("AssertionError", exc_info=True)
@@ -91,32 +94,66 @@ class Pickup:
 
         try:
             assert (
-                len(self.received_package_queue) < self.capacity
+                len(self.received_package_set) < self.capacity
             ), f"Adding of {package} to {self} exceeds capacity={self.capacity}"
         except AssertionError as e:
             logger.error("AssertionError", exc_info=True)
             raise e
 
         self.assigned_package_set.remove(package)
-        self.received_package_queue.append(package)
-        package.reached_pickup_time = traci.simulation.getTime()
+        self.received_package_set.add(package)
+        # package.reached_pickup_time = traci.simulation.getTime()
         logger.debug(f"Dropped {package} at {self}")
 
-        if len(self.received_package_queue) >= DRONE_CAPACITY():
-            self.prepare_drone()
+        # if len(self.received_package_set) >= DRONE_CAPACITY():
+        #     self.prepare_drone()
 
     def prepare_drone(self):
-        if self.drone.parked:
-            received_package_queue_copy = self.received_package_queue.copy()
-            for package in received_package_queue_copy:
-                if len(self.drone.carrying_package_set) < DRONE_CAPACITY():
-                    self.received_package_queue.remove(package)
-                    logger.debug(f"Picked up {package} from {self}")
+        logger.debug(f"Preparing {self.drone}")
 
-                    self.drone.assign_package(package)
-            received_package_queue_copy.clear()
+        farthest_package = max(
+            self.received_package_set,
+            key=lambda package: euclidean_distance(self.center, package.center),
+        )
+        radius = euclidean_distance(self.center, farthest_package)
+        theta = self.drone.range / radius - 2
 
-            self.drone.tsp()
+        farthest_residence_angle = math.atan2(
+            farthest_package[1] - self.center[1],
+            farthest_package[0] - self.center[0],
+        )
+
+        self.sector = Wedge(
+            center=self.center,
+            r=radius,
+            theta1=math.degrees(farthest_residence_angle - theta / 2),
+            theta2=math.degrees(farthest_residence_angle + theta / 2),
+            # alpha=0.25,
+            # color="orange",
+        )
+
+        delivery_packages = set()
+        for package in self.received_package_set:
+            if self.sector.contains_point(package):
+                delivery_packages.add(package)
+
+        while len(delivery_packages) > self.drone.capacity:
+            delivery_packages.remove(
+                min(
+                    delivery_packages,
+                    key=lambda package: euclidean_distance(self.center, package.center),
+                )
+            )
+
+        for package in delivery_packages:
+            self.received_package_set.remove(package)
+            logger.debug(f"Picked up {package} from {self}")
+            self.drone.assign_package(package)
+        delivery_packages.clear()
+
+        self.drone.start_route()
+
+        # self.drone.tsp()
 
     @staticmethod
     def create_pickup_list() -> list[Pickup]:
