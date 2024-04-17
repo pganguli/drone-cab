@@ -196,8 +196,8 @@ def update(i):
     history_x.append(x)
     history_y.append(y)
 
-    drone.set_data([history_x[i]], [history_y[i]])
-    trace.set_data(history_x[:i], history_y[:i])
+    drone.set_data([x], [y])
+    trace.set_data(history_x, history_y)
 
     # Drone reached current target; set next target
     if (x, y) == (target_x, target_y):
