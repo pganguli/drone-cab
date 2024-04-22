@@ -176,7 +176,7 @@ sector = Ellipse(
     ),
     width=major_axis,
     height=find_minor_axis(major_axis, DRONE_RANGE, approx=True) - DRONE_RANGE * 0.07,
-    angle=math.degrees(farthest_residence_angle),
+    angle=int(math.degrees(farthest_residence_angle)),
     alpha=0.25,
     color="orange",
 )
