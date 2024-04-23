@@ -107,6 +107,7 @@ class Drone(traci.StepListener):
 
     def start_tsp(self) -> None:
         """Start the TSP route of the drone to start delivery of carrying_package_set."""
+        
         self.route = iter(self.christofides_route())
         self.current_position = next(self.route).center
         self.current_target = next(self.route)
@@ -114,6 +115,7 @@ class Drone(traci.StepListener):
 
     def end_tsp(self) -> None:
         """End the TSP route of the drone."""
+        
         self.route = None
         self.current_position = self.center
         self.current_target = self
@@ -128,7 +130,7 @@ class Drone(traci.StepListener):
         """
         try:
             assert (
-                package not in self.carrying_package_set
+                package in self.carrying_package_set
             ), f"Attempted to drop {package} not being carried by {self}"
         except AssertionError:
             logger.warning("AssertionError", exc_info=True)
@@ -142,7 +144,7 @@ class Drone(traci.StepListener):
         if not self.parked:
             if self.current_position == self.current_target.center:
                 logger.debug(
-                    f"{self} reached target {self.current_target} at step = {t}"
+                    f"{self} reached target {self.current_target}"
                 )
                 if isinstance(self.current_target, Package):
                     self.drop_package(self.current_target)
@@ -167,7 +169,7 @@ class Drone(traci.StepListener):
             )
             self.distance_travelled += distance_step
             logger.debug(
-                f"{self} travelled by {distance_step} at step = {t} towards {self.current_target}"
+                f"{self} travelled by {distance_step} towards {self.current_target}"
             )
 
         return True

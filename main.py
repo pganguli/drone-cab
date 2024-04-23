@@ -71,9 +71,9 @@ if __name__ == "__main__":
         traci.addStepListener(pickup.drone)
     Vehicle.create_vehicle_list()
 
-    package_queue: deque["Package"] = deque()
+    package_queue: deque[Package] = deque()
 
-    for step in range(200):
+    for step in range(400):
         logger.info(f"Simulation {step=}")
 
         poll_packages(pickup_list)

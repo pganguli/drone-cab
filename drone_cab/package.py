@@ -44,7 +44,7 @@ class Package:
         self.assigned_pickup: Pickup | None = None
         self.reached_pickup: bool = False
         self.reached_destination: bool = False
-        logger.debug(f"Created {self}")
+        logger.debug(f"Created {self} with center {self.center}")
 
     def __repr__(self) -> str:
         return f"Package({self.destination_id})"

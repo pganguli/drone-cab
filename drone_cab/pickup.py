@@ -129,6 +129,11 @@ class Pickup:
             self.received_package_set,
             key=lambda package: euclidean_distance(self.center, package.center),
         )
+        for i in self.received_package_set:
+            logger.debug(f"{i}, {euclidean_distance(self.center, i.center)}")
+
+        logger.debug(f"{farthest_package=}")
+
         radius = euclidean_distance(self.center, farthest_package.center)
         theta = self.drone.range / radius - 2
 
@@ -144,6 +149,9 @@ class Pickup:
             theta2=math.degrees(farthest_residence_angle + theta / 2),
         )
 
+        for i in self.received_package_set:
+            logger.debug(f"{i}, in sector: {self.sector.contains_point(i.center)}")
+        
         delivery_packages = set(
             [
                 package
@@ -151,26 +159,27 @@ class Pickup:
                 if self.sector.contains_point(package.center)
             ]
         )
-
+        logger.debug(f"{delivery_packages=}")
         while len(delivery_packages) > self.drone.capacity:
             package_to_remove = min(
                 delivery_packages,
-                key=lambda package: euclidean_distance(self.center, package.center)
+                key=lambda package: euclidean_distance(self.center, package.center),
             )
-            delivery_packages.remove(
-                package_to_remove
+            delivery_packages.remove(package_to_remove)
+            logger.debug(
+                f"Removed {package_to_remove} from {self.drone} due to capacity being at {len(delivery_packages)}"
             )
-            logger.debug(f"Removed {package_to_remove} from {self.drone} due to capacity being at {len(delivery_packages)}")
 
         for package in delivery_packages:
             self.received_package_set.remove(package)
-            logger.debug(f"Added {package} to {self.drone} from {self}")
+            logger.debug(f"Removed {package} from {self}")
+            logger.debug(f"Added {package} to {self.drone}")
             self.drone.assign_package(package)
 
         try:
             assert (
                 self.drone.carrying_package_set
-            ), f"{self.drone} is carrying no packages, yet TSP initiated."
+            ), f"{self.drone} is carrying no packages, yet TSP initiated. {self.drone.carrying_package_set}"
         except AssertionError as e:
             logger.error("AssertionError", exc_info=True)
             raise e

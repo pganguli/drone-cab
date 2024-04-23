@@ -5,7 +5,10 @@ import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.patches import Wedge
 
-from drone_cab.utils import euclidean_distance
+
+def euclidean_distance(a, b):
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
 
 #
 # Constants for experiment setup
@@ -86,6 +89,10 @@ RESIDENCE_CENTERS = [
     (959.8089497999999, 905.2383588),
 ]
 RESIDENCE_CENTERS = RESIDENCE_CENTERS[:30]
+RESIDENCE_CENTERS = [
+    (830.9097364000002, 1052.3086304),
+    (854.0374629999999, 966.0913326),
+]
 
 #
 # Matplotlib plot setup
@@ -140,11 +147,15 @@ for residence in RESIDENCE_CENTERS:
         plt.Circle(
             xy=residence,
             radius=1,
-            color="red"
-            if residence == farthest_residence
-            else "magenta"
-            if sector.contains_point(ax.transData.transform(residence))
-            else "blue",
+            color=(
+                "red"
+                if residence == farthest_residence
+                else (
+                    "magenta"
+                    if sector.contains_point(ax.transData.transform(residence))
+                    else "blue"
+                )
+            ),
         )
     )
 
@@ -179,8 +190,11 @@ path_iter = iter(path)
 
 x, y = next(path_iter)
 assert (
-    (x, y) == DRONE_CENTER
-), f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
+    x,
+    y,
+) == DRONE_CENTER, (
+    f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
+)
 target_x, target_y = x, y
 history_x, history_y = [], []
 distance_travelled = 0
