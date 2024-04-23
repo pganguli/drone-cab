@@ -8,24 +8,20 @@ from the corresponding pickup point to the destination residences.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+import math
+from typing import Iterator
 
-import matplotlib.pyplot as plt
 import networkx as nx
-import numpy as np
 import traci
-from scipy.spatial import distance_matrix
 
+from drone_cab.package import Package
 from drone_cab.tunables import DRONE_CAPACITY, DRONE_RANGE, DRONE_SPEED
 from drone_cab.utils import euclidean_distance, shape2centroid
-
-if TYPE_CHECKING:
-    from drone_cab.package import Package
 
 logger = logging.getLogger(__name__)
 
 
-class Drone:
+class Drone(traci.StepListener):
     """Drones that carry packages from their pickup points to the destination residences.
 
     Args:
@@ -61,6 +57,9 @@ class Drone:
         self.parked = True
         self.distance_travelled = 0.0
         self.idle_steps = 0
+        self.route: Iterator[Drone | Package] | None = None
+        self.current_target: Drone | Package = self
+        self.current_position: tuple[float, float] = self.center
         self.carrying_package_set: set[Package] = set()
 
         logger.debug(f"Created {self}")
@@ -85,109 +84,41 @@ class Drone:
         self.carrying_package_set.add(package)
         logger.debug(f"Assigned drone of {package}: {self}")
 
-    def define_route(self) -> list:
+    def christofides_route(self) -> list[Drone | Package]:
+        """Find the drone route to follow as per Christofides approximation of TSP.
+
+        Note:
+            Start and end coordinates of the TSP route will be the center of the drone's pickup point.
+        """
         G = nx.Graph()
-        G.add_node(self.center)
+        G.add_node(self)
         for package in self.carrying_package_set:
-            G.add_node(package.destination_center)
+            G.add_node(package)
         G.add_weighted_edges_from(
             [
-                (node_i, node_j, euclidean_distance(node_i, node_j))
+                (node_i, node_j, euclidean_distance(node_i.center, node_j.center))
                 for node_i in G.nodes
                 for node_j in G.nodes
                 if node_i != node_j
             ]
         )
 
-        route = nx.algorithms.approximation.christofides(G)
-        return list(route)
+        return nx.algorithms.approximation.christofides(G)
 
-    def start_route(self) -> None:
-        route = self.define_route()
-        route_iter = iter(route)
-        x, y = next(route_iter)
-        assert (
-            (x, y) == self.center
-        ), f"Drone attempted to take off from {(x, y)} instead of {self.center=}"
-
-    def tsp(self):
-        cost = 0
+    def start_tsp(self) -> None:
+        """Start the TSP route of the drone to start delivery of carrying_package_set."""
+        self.route = iter(self.christofides_route())
+        self.current_position = next(self.route).center
+        self.current_target = next(self.route)
         self.parked = False
-        logger.debug(f"{self} started TSP")
 
-        nodes_to_visit = [self.center] + list(
-            map(lambda x: x.destination_center, self.carrying_package_set)
-        )
-        nodes_to_visit = np.array(nodes_to_visit)
-
-        dist_matrix = distance_matrix(nodes_to_visit, nodes_to_visit)
-        dist_matrix = np.round(dist_matrix, decimals=2)
-
-        G = nx.from_numpy_array(dist_matrix)
-        path = nx.approximation.christofides(G)
-
-        edgelist = []
-        for i in range(0, len(path) - 1):
-            edgelist.append((path[i], path[i + 1]))
-            cost += G.get_edge_data(path[i], path[i + 1])["weight"]
-        self.distance_travelled += cost
-
-        logger.debug(f"{self} completed TSP with cost {cost:.2f} m")
-
-        carrying_package_set_copy = self.carrying_package_set.copy()
-        for package in carrying_package_set_copy:
-            self.drop_package(package)
-        carrying_package_set_copy.clear()
-
+    def end_tsp(self) -> None:
+        """End the TSP route of the drone."""
+        self.route = None
+        self.current_position = self.center
+        self.current_target = self
         self.parked = True
-
-        # self.display_tsp(G, nodes_to_visit, edgelist)
-
-    def display_tsp(
-        self,
-        G: nx.Graph,
-        nodes_to_visit: list[tuple[float, float]],
-        edgelist: list[tuple[int, int]],
-    ):
-        plt.figure(figsize=(10, 6))
-        pos = {}
-        for node in G.nodes():
-            pos[node] = [nodes_to_visit[node, 0], nodes_to_visit[node, 1]]
-        nx.draw_networkx_nodes(G, pos=pos, nodelist=[0], node_color="#ff0000")
-        nx.draw_networkx_nodes(
-            G, pos=pos, nodelist=list(G.nodes)[1:], node_color="#df34eb"
-        )
-
-        nx.draw_networkx_edges(
-            G,
-            pos=pos,
-            edgelist=G.edges() - (edgelist + [(j, i) for (i, j) in edgelist]),
-        )
-        nx.draw_networkx_edges(
-            G,
-            pos=pos,
-            edgelist=edgelist,
-            edge_color="darkorange",
-            arrows=True,
-            arrowstyle="-|>",
-        )
-
-        edge_labels = nx.get_edge_attributes(G, "weight")
-        nx.draw_networkx_edge_labels(
-            G, pos=pos, edge_labels=edge_labels, label_pos=0.25
-        )
-
-        labels = {}
-        labels = dict.fromkeys(G.nodes, "package")
-        labels[0] = "pickup"
-        for i, p in enumerate(pos):
-            if i % 2 == 0:
-                pos[p][1] -= 7
-            else:
-                pos[p][1] += 7
-        nx.draw_networkx_labels(G, pos=pos, labels=labels, font_size=10)
-
-        plt.show()
+        self.idle_steps = 0
 
     def drop_package(self, package: Package) -> None:
         """Drop off a package being cuurently carried by this drone at its destination residence.
@@ -206,3 +137,37 @@ class Drone:
         self.carrying_package_set.remove(package)
         package.mark_delivered()
         logger.debug(f"Delivered {package} by {self}")
+
+    def step(self, t: int = 0) -> bool:
+        if not self.parked:
+            if self.current_position == self.current_target.center:
+                logger.debug(
+                    f"{self} reached target {self.current_target} at step = {t}"
+                )
+                if isinstance(self.current_target, Package):
+                    self.drop_package(self.current_target)
+                try:
+                    self.current_target = next(self.route)
+                except StopIteration:
+                    self.end_tsp()
+
+            dist_left = euclidean_distance(
+                self.current_position, self.current_target.center
+            )
+            distance_step = min(self.speed, dist_left)
+            x, y = self.current_position
+            target_x, target_y = self.current_target.center
+            theta = math.atan2(
+                target_y - y,
+                target_x - x,
+            )
+            self.current_position = (
+                x + distance_step * math.cos(theta),
+                y + distance_step * math.sin(theta),
+            )
+            self.distance_travelled += distance_step
+            logger.debug(
+                f"{self} travelled by {distance_step} at step = {t} towards {self.current_target}"
+            )
+
+        return True

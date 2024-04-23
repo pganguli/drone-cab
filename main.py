@@ -14,7 +14,7 @@ import traci
 logger = logging.getLogger(__name__)
 
 
-def poll_packages(pickup_list: list[Pickup]):
+def poll_packages(non_empty_pickup_list: list[Pickup]):
     Vehicle.create_vehicle_list()
 
     vehicle_list: list[Vehicle] = list(
@@ -34,10 +34,10 @@ def poll_packages(pickup_list: list[Pickup]):
             if vehicle.get_road_id() == package.assigned_pickup.nearest_edge_id:
                 vehicle.drop_package(package)
 
-    pickup_list = list(filter(lambda pickup: pickup.received_package_set, pickup_list))
-    for pickup in pickup_list:
+    non_empty_pickup_list = list(filter(lambda pickup: pickup.received_package_set, non_empty_pickup_list))
+    for pickup in non_empty_pickup_list:
         if pickup.drone.idle_steps > DRONE_MAX_IDLE_STEPS() and pickup.drone.parked:
-            pickup.prepare_drone()
+            pickup.init_tsp()
         else:
             pickup.drone.idle_steps += 1
 
@@ -67,16 +67,19 @@ if __name__ == "__main__":
 
     warehouse = Warehouse()
     pickup_list = [Pickup(pickup_center) for pickup_center in PICKUP_CENTER_LIST()]
+    for pickup in pickup_list:
+        traci.addStepListener(pickup.drone)
     Vehicle.create_vehicle_list()
 
     package_queue: deque["Package"] = deque()
+
     for step in range(200):
         logger.info(f"Simulation {step=}")
 
         poll_packages(pickup_list)
 
         if step == 30:
-            for destination_id in ["234807099", "239713538", "359039090"]:
+            for destination_id in ["234807099", "239713538"]:#, "359039090"]:
                 package_queue.append(
                     Package(destination_id)
                 )

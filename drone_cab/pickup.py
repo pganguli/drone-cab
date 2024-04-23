@@ -51,7 +51,6 @@ class Pickup:
         self.center = pickup_center
         self.capacity = pickup_capacity
         self.id = f"pickup#{hash(self.center)}"
-        self.drone = Drone(self.id)
         self.assigned_package_set: set[Package] = set()
         self.received_package_set: set[Package] = set()
 
@@ -69,9 +68,10 @@ class Pickup:
             fill=True,
         )
 
-        logger.debug(f"Created {self}")
-
+        self.drone = Drone(self.id)
         self.nearest_edge_id = get_nearest_edge_id(self.id)
+
+        logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
         return f"Pickup({self.center}, {self.capacity})"
@@ -122,21 +122,19 @@ class Pickup:
         self.received_package_set.add(package)
         logger.debug(f"Dropped {package} at {self}")
 
-    def prepare_drone(self):
-        logger.debug(f"Preparing {self.drone}")
+    def init_tsp(self):
+        logger.debug(f"Starting TSP of {self.drone}")
 
         farthest_package = max(
             self.received_package_set,
-            key=lambda package: euclidean_distance(
-                self.center, package.destination_center
-            ),
+            key=lambda package: euclidean_distance(self.center, package.center),
         )
-        radius = euclidean_distance(self.center, farthest_package.destination_center)
+        radius = euclidean_distance(self.center, farthest_package.center)
         theta = self.drone.range / radius - 2
 
         farthest_residence_angle = math.atan2(
-            farthest_package.destination_center[1] - self.center[1],
-            farthest_package.destination_center[0] - self.center[0],
+            farthest_package.center[1] - self.center[1],
+            farthest_package.center[0] - self.center[0],
         )
 
         self.sector = Wedge(
@@ -144,27 +142,37 @@ class Pickup:
             r=radius,
             theta1=math.degrees(farthest_residence_angle - theta / 2),
             theta2=math.degrees(farthest_residence_angle + theta / 2),
-            # alpha=0.25,
-            # color="orange",
         )
 
-        delivery_packages = set()
-        for package in self.received_package_set:
-            if self.sector.contains_point(package):
-                delivery_packages.add(package)
+        delivery_packages = set(
+            [
+                package
+                for package in self.received_package_set
+                if self.sector.contains_point(package.center)
+            ]
+        )
 
         while len(delivery_packages) > self.drone.capacity:
-            delivery_packages.remove(
-                min(
-                    delivery_packages,
-                    key=lambda package: euclidean_distance(self.center, package.center),
-                )
+            package_to_remove = min(
+                delivery_packages,
+                key=lambda package: euclidean_distance(self.center, package.center)
             )
+            delivery_packages.remove(
+                package_to_remove
+            )
+            logger.debug(f"Removed {package_to_remove} from {self.drone} due to capacity being at {len(delivery_packages)}")
 
         for package in delivery_packages:
             self.received_package_set.remove(package)
-            logger.debug(f"Picked up {package} from {self}")
+            logger.debug(f"Added {package} to {self.drone} from {self}")
             self.drone.assign_package(package)
-        delivery_packages.clear()
 
-        self.drone.start_route()
+        try:
+            assert (
+                self.drone.carrying_package_set
+            ), f"{self.drone} is carrying no packages, yet TSP initiated."
+        except AssertionError as e:
+            logger.error("AssertionError", exc_info=True)
+            raise e
+
+        self.drone.start_tsp()

@@ -32,7 +32,7 @@ def assign_package_pickup(package: Package, pickup_list: list[Pickup]) -> Pickup
     """
     pickup_list = sorted(
         pickup_list,
-        key=lambda pickup: euclidean_distance(package.destination_center, pickup.center),
+        key=lambda pickup: euclidean_distance(package.center, pickup.center),
     )
 
     for pickup in pickup_list:
