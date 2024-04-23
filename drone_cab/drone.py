@@ -1,46 +1,67 @@
+"""Drone class.
+
+This class implements the drones that transport packages
+from the corresponding pickup point to the destination residences.
+
+"""
+
 from __future__ import annotations
 
 import logging
-import math
 from typing import TYPE_CHECKING
-
-from matplotlib.patches import Wedge
-from matplotlib.pylab import ArrayLike
-
-from drone_cab.utils import euclidean_distance
-
-if TYPE_CHECKING:
-    from drone_cab.package import Package
 
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+import traci
 from scipy.spatial import distance_matrix
+
+from drone_cab.tunables import DRONE_CAPACITY, DRONE_RANGE, DRONE_SPEED
+from drone_cab.utils import euclidean_distance, shape2centroid
+
+if TYPE_CHECKING:
+    from drone_cab.package import Package
 
 logger = logging.getLogger(__name__)
 
 
-def DRONE_CAPACITY() -> int:
-    return 2  # random.randint(5, 15)
-
-
-def DRONE_TIMEOUT() -> int:
-    return 30
-
-
 class Drone:
-    def __init__(self, drone_center: tuple[float, float], drone_capacity: int) -> None:
-        self.center = drone_center
+    """Drones that carry packages from their pickup points to the destination residences.
+
+    Args:
+        pickup_id: SUMO ID of the pickup point on which this drone sits.
+        drone_capacity (optional): Maximum number of packages that this drone can carry. Defaults to tunable constant.
+        drone_speed (optional): Maximum flying speed of this drone. Defaults to tunable constant.
+        drone_range (optional): Maximum flying range of this drone. Defaults to tunable constant.
+
+    Attributes:
+        pickup_id: SUMO ID of the pickup point on which this drone sits.
+        center: 2-D coordinates of the center of the pickup point polyon on which this drone sits.
+        capacity: Maximum number of packages that this drone can carry.
+        speed: Maximum flying speed of this drone.
+        range: Maximum flying range of this drone.
+        parked: True if drone is currently sitting idle at the pickup point.
+        distance_travelled: Total flying distance covered by the drone so far.
+        idle_steps: Number of idle time steps spent by this drone sitting parked at the pickup point.
+        carrying_package_set: Set of packages currently being carried by this drone.
+    """
+
+    def __init__(
+        self,
+        pickup_id: str,
+        drone_capacity: int = DRONE_CAPACITY(),
+        drone_speed: float = DRONE_SPEED(),
+        drone_range: float = DRONE_RANGE(),
+    ) -> None:
+        self.pickup_id = pickup_id
+        self.center = shape2centroid(traci.polygon.getShape(self.pickup_id))
         self.capacity = drone_capacity
-        self.speed = 2
-        self.range = 200
-        self.id = f"drone#{hash(self.center)}"
+        self.speed = drone_speed
+        self.range = drone_range
         self.parked = True
-        self.cost = 0
-        self.timer = 0
+        self.distance_travelled = 0.0
+        self.idle_steps = 0
         self.carrying_package_set: set[Package] = set()
-        # self.delivered_package_set: set[Package] = set()
-        self.sector = None
 
         logger.debug(f"Created {self}")
 
@@ -48,6 +69,11 @@ class Drone:
         return f"Drone({self.center}, {self.capacity})"
 
     def assign_package(self, package: Package) -> None:
+        """Assign a package to this drone for being transported to its destination residence.
+
+        Args:
+            package: Package object to assign to this drone.
+        """
         try:
             assert (
                 package not in self.carrying_package_set
@@ -63,7 +89,7 @@ class Drone:
         G = nx.Graph()
         G.add_node(self.center)
         for package in self.carrying_package_set:
-            G.add_node(package.center)
+            G.add_node(package.destination_center)
         G.add_weighted_edges_from(
             [
                 (node_i, node_j, euclidean_distance(node_i, node_j))
@@ -74,9 +100,7 @@ class Drone:
         )
 
         route = nx.algorithms.approximation.christofides(G)
-        return(list(route))
-        # self.start_route()
-        path_iter = iter(path)
+        return list(route)
 
     def start_route(self) -> None:
         route = self.define_route()
@@ -85,11 +109,6 @@ class Drone:
         assert (
             (x, y) == self.center
         ), f"Drone attempted to take off from {(x, y)} instead of {self.center=}"
-        target_x, target_y = x, y
-        history_x, history_y = [], []
-        distance_travelled = 0
-
-
 
     def tsp(self):
         cost = 0
@@ -97,7 +116,7 @@ class Drone:
         logger.debug(f"{self} started TSP")
 
         nodes_to_visit = [self.center] + list(
-            map(lambda x: x.center, self.carrying_package_set)
+            map(lambda x: x.destination_center, self.carrying_package_set)
         )
         nodes_to_visit = np.array(nodes_to_visit)
 
@@ -111,13 +130,13 @@ class Drone:
         for i in range(0, len(path) - 1):
             edgelist.append((path[i], path[i + 1]))
             cost += G.get_edge_data(path[i], path[i + 1])["weight"]
-        self.cost += cost
+        self.distance_travelled += cost
 
         logger.debug(f"{self} completed TSP with cost {cost:.2f} m")
 
         carrying_package_set_copy = self.carrying_package_set.copy()
         for package in carrying_package_set_copy:
-            self.deliver_package(package)
+            self.drop_package(package)
         carrying_package_set_copy.clear()
 
         self.parked = True
@@ -127,8 +146,8 @@ class Drone:
     def display_tsp(
         self,
         G: nx.Graph,
-        nodes_to_visit: list[(float, float)],
-        edgelist: list[(int, int)],
+        nodes_to_visit: list[tuple[float, float]],
+        edgelist: list[tuple[int, int]],
     ):
         plt.figure(figsize=(10, 6))
         pos = {}
@@ -170,21 +189,20 @@ class Drone:
 
         plt.show()
 
-    def deliver_package(self, package: Package) -> None:
+    def drop_package(self, package: Package) -> None:
+        """Drop off a package being cuurently carried by this drone at its destination residence.
+
+        Args:
+            package: Package object to drop off at its destination residence from this drone.
+        """
         try:
             assert (
-                package not in self.delivered_package_set
-            ), f"Attempted to drop existing {package} at {self}"
+                package not in self.carrying_package_set
+            ), f"Attempted to drop {package} not being carried by {self}"
         except AssertionError:
             logger.warning("AssertionError", exc_info=True)
             return
 
         self.carrying_package_set.remove(package)
-        self.delivered_package_set.add(package)
+        package.mark_delivered()
         logger.debug(f"Delivered {package} by {self}")
-
-        package.package_delivered()
-
-    @staticmethod
-    def create_drone(drone_center) -> Drone:
-        return Drone(drone_center, DRONE_CAPACITY())

@@ -1,24 +1,38 @@
+"""Warehouse class.
+
+This class implements the central warehouse from where
+all central packages are distributed for delivery.
+
+"""
+
 import logging
+
 import traci
 
-from drone_cab.utils import get_lane_list, get_nearest_edge_id, shape2centroid
+from drone_cab.tunables import WAREHOUSE_ID
+from drone_cab.utils import get_nearest_edge_id, shape2centroid
 
 logger = logging.getLogger(__name__)
-WAREHOUSE_ID = "239796134"
 
 
 class Warehouse:
-    def __init__(self, warehouse_id: str) -> None:
+    """Central warehouse from where all packages are distributed for delivery.
+
+    Args:
+        warehouse_id (optional): SUMO ID of warehouse. Defaults to tunable constant.
+
+    Attributes:
+        id: SUMO ID of this warehouse.
+        center: 2-D coordinates of the centroid of this warehouse's polygon.
+        nearest_edge_id: SUMO ID of road edge that is closest to this warehouse.
+    """
+
+    def __init__(self, warehouse_id: str = WAREHOUSE_ID()) -> None:
         self.id = warehouse_id
         traci.polygon.setColor(self.id, (0, 0, 255))
-
         self.center = shape2centroid(traci.polygon.getShape(self.id))
-        self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
+        self.nearest_edge_id = get_nearest_edge_id(self.id)
         logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
         return f"Warehouse({self.id})"
-
-    @staticmethod
-    def create_warehouse_id() -> str:
-        return WAREHOUSE_ID

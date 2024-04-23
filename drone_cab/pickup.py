@@ -1,50 +1,57 @@
+"""Pickup class.
+
+This class implements the pickup points that store packages
+temporarily after being dropped off by a vehicle, until a drone
+picks them up for completion of their delivery.
+
+"""
+
 from __future__ import annotations
 
 import logging
 import math
 from typing import TYPE_CHECKING
 
+import traci
 from matplotlib.patches import Wedge
+
+from drone_cab.drone import Drone
+from drone_cab.tunables import PICKUP_CAPACITY
+from drone_cab.utils import euclidean_distance, get_nearest_edge_id
 
 if TYPE_CHECKING:
     from drone_cab.package import Package
-from drone_cab.drone import Drone, DRONE_CAPACITY
-
-from collections import deque
-
-import traci
-
-from drone_cab.utils import euclidean_distance, get_lane_list, get_nearest_edge_id
 
 logger = logging.getLogger(__name__)
 
-def PICKUP_CAPACITY() -> int:
-    return 2  # random.randint(5, 15)
-
-
-PICKUP_CENTER_LIST = [
-    (1108.783925, 787.6503665714287),
-    (891.3527764504684, 588.4114269530795),
-    (908.783925, 987.6503665714287),
-    (1108.783925, 441.2402050576532),
-    (508.78392499999995, 787.6503665714287),
-    (1108.783925, 1134.0605280852042),
-    (1428.399167270663, 487.6503665714284),
-    (389.16868272933675, 1087.6503665714285),
-    (608.7839250000001, 1307.2656088420918),
-    (508.7839249999996, 94.83004354387799),
-    (1708.783925, 787.6503665714287),
-]
-
 
 class Pickup:
+    """Pickup points stroe packages after being dropped off by vehicles, until a drone picks them up.
+
+    Args:
+        pickup_center: 2-D coordinates of the center of the pickup point polyon.
+        pickup_capacity (optional): Maximum number of packages that this pikcup point can store. Defaults to tunable constant.
+
+    Attributes:
+        center: 2-D coordinates of the center of the pickup point polyon.
+        capacity: Maximum number of packages that this pikcup point can store.
+        id: SUMO ID of the pickup point.
+        capacity: Maximum number of packages that this drone can carry.
+        drone: Drone object that services (sits at) this pickup point.
+        assigned_package_set: Packages expected to be delivered to this pickup point by vehicles.
+        received_package_set: Packages currently being stored at this pickup point.
+        nearest_edge_id: SUMO ID of the raod edge closest to this pickup point polygon.
+    """
+
     def __init__(
-        self, pickup_center: tuple[float, float], pickup_capacity: int
+        self,
+        pickup_center: tuple[float, float],
+        pickup_capacity: int = PICKUP_CAPACITY(),
     ) -> None:
         self.center = pickup_center
         self.capacity = pickup_capacity
         self.id = f"pickup#{hash(self.center)}"
-        self.drone = None
+        self.drone = Drone(self.id)
         self.assigned_package_set: set[Package] = set()
         self.received_package_set: set[Package] = set()
 
@@ -57,21 +64,24 @@ class Pickup:
                 (self.center[0], self.center[1] + 15),
                 (self.center[0], self.center[1]),
             ],
-            color=[255, 0, 0],
+            color=(255, 0, 0),
             polygonType="pickup",
             fill=True,
         )
 
         logger.debug(f"Created {self}")
 
-        self.drone = Drone.create_drone(drone_center=pickup_center)
-
-        self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
+        self.nearest_edge_id = get_nearest_edge_id(self.id)
 
     def __repr__(self) -> str:
         return f"Pickup({self.center}, {self.capacity})"
 
     def assign_package(self, package: Package) -> None:
+        """Assign a package to this pickup point for storage after being dropped off by a vehicle.
+
+        Args:
+            package: Package object to assign to this pickup point.
+        """
         try:
             assert (
                 package not in self.assigned_package_set
@@ -83,7 +93,15 @@ class Pickup:
         self.assigned_package_set.add(package)
         logger.debug(f"Assigned pickup of {package} to {self}")
 
-    def receive_package(self, package: Package) -> None:
+    def add_package(self, package: Package) -> None:
+        """Add a package to this pickup point's storage.
+
+        Args:
+            package: Package object to add to this pickup point's storage.
+
+        Raises:
+            AssertionError: If addition of package would exceed capacity of this pickup point.
+        """
         try:
             assert (
                 package not in self.received_package_set
@@ -102,25 +120,23 @@ class Pickup:
 
         self.assigned_package_set.remove(package)
         self.received_package_set.add(package)
-        # package.reached_pickup_time = traci.simulation.getTime()
         logger.debug(f"Dropped {package} at {self}")
-
-        # if len(self.received_package_set) >= DRONE_CAPACITY():
-        #     self.prepare_drone()
 
     def prepare_drone(self):
         logger.debug(f"Preparing {self.drone}")
 
         farthest_package = max(
             self.received_package_set,
-            key=lambda package: euclidean_distance(self.center, package.center),
+            key=lambda package: euclidean_distance(
+                self.center, package.destination_center
+            ),
         )
-        radius = euclidean_distance(self.center, farthest_package)
+        radius = euclidean_distance(self.center, farthest_package.destination_center)
         theta = self.drone.range / radius - 2
 
         farthest_residence_angle = math.atan2(
-            farthest_package[1] - self.center[1],
-            farthest_package[0] - self.center[0],
+            farthest_package.destination_center[1] - self.center[1],
+            farthest_package.destination_center[0] - self.center[0],
         )
 
         self.sector = Wedge(
@@ -152,12 +168,3 @@ class Pickup:
         delivery_packages.clear()
 
         self.drone.start_route()
-
-        # self.drone.tsp()
-
-    @staticmethod
-    def create_pickup_list() -> list[Pickup]:
-        return [
-            Pickup(pickup_center, PICKUP_CAPACITY())
-            for pickup_center in PICKUP_CENTER_LIST
-        ]

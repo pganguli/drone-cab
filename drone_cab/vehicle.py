@@ -1,7 +1,16 @@
+"""Vehicle (or cab) class.
+
+This class implements the vehicles / cabs that transport
+packages from the central warehouse to the drone pickup points.
+
+"""
+
 from __future__ import annotations
 
 import logging
 from typing import TYPE_CHECKING
+
+from drone_cab.tunables import VEHICLE_CAPACITY
 
 if TYPE_CHECKING:
     from drone_cab.package import Package
@@ -12,14 +21,22 @@ import traci
 logger = logging.getLogger(__name__)
 
 
-def VEHICLE_CAPACITY():
-    return 2  # random.randint(5, 15)
-
-
 class Vehicle:
-    vehicle_list: list[Vehicle] = []
+    """Vehicles that carry packages from the warehouse to pickup points.
 
-    def __init__(self, vehicle_id: str, vehicle_capacity: int) -> None:
+    Args:
+        vehicle_id: SUMO ID of vehicle.
+        vehicle_capacity (optional): Maximum number of packages that this vehicle can carry. Defaults to tunable constant.
+
+    Attributes:
+        id: SUMO ID of vehicle.
+        capacity: Maximum number of packages that this vehicle can carry.
+        carrying_package_set: Set of packages currently being carried by this vehicle.
+    """
+
+    vehicle_list: list[Vehicle] = []  #: List of all vehicle objects.
+
+    def __init__(self, vehicle_id: str, vehicle_capacity: int = VEHICLE_CAPACITY()) -> None:
         self.id = vehicle_id
         self.capacity = vehicle_capacity
         self.carrying_package_set: set[Package] = set()
@@ -34,26 +51,60 @@ class Vehicle:
         return self.id == other.id
 
     def get_road_id(self) -> str:
+        """Get SUMO ID of road that vehicle is currently on.
+
+        Returns:
+            SUMO ID of road that vehicle is currently on.
+        """
         return traci.vehicle.getRoadID(self.id)
 
     def get_route_edge_id_list(self) -> list[str]:
+        """Get list of SUMO IDs of edges that comprise vehicle's route.
+
+        Returns:
+            List of SUMO IDs of edges that comrpise vehcile's route.
+        """
         return traci.route.getEdges(traci.vehicle.getRouteID(self.id))
 
     def is_visiting_warehouse(self, warehouse: Warehouse) -> bool:
+        """Whether vehicle is yet to reach warehouse.
+
+        Args:
+            warehouse: SUMO ID of warehouse to visit for picking up packages.
+
+        Returns:
+            True if vehicle has not yet reached edge closest to warehouse.
+        """
         return warehouse.nearest_edge_id in self.get_route_edge_id_list()
 
-    def get_distance_along_road(self, point: tuple[float, float]) -> float:
+    def get_distance_along_road(self, target: tuple[float, float]) -> float:
+        """Get distance along the road network to the specified target.
+
+        Args:
+            target: 2-D coordinates of target to measure distance to.
+
+        Returns:
+            Distance along the road network to the specified target.
+        """
         x1, y1 = traci.vehicle.getPosition(self.id)
-        x2, y2 = point
+        x2, y2 = target
         return traci.simulation.getDistance2D(
-            x1,
-            y1,
-            x2,
-            y2,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
             isDriving=True,
         )
 
-    def assign_package(self, package: Package) -> None:
+    def add_package(self, package: Package) -> None:
+        """Add a package to the vehicle for transporting to a pickup point.
+
+        Args:
+            package: Package object to be added to vehicle.
+
+        Raises:
+            AssertionError: If addition of package would exceed capacity of vehicle.
+        """
         try:
             assert (
                 package not in self.carrying_package_set
@@ -75,6 +126,14 @@ class Vehicle:
         logger.debug(f"Assigned vehicle of {package} to {self}")
 
     def drop_package(self, package: Package) -> None:
+        """Drop a package off onto its assigned pickup point.
+
+        Args:
+            package: Package object to drop off.
+
+        Raises:
+            AssertionError: If package has no assigned pickup point.
+        """
         try:
             assert (
                 package.assigned_pickup is not None
@@ -87,10 +146,11 @@ class Vehicle:
         traci.vehicle.setColor(self.id, (255, 255, 0))
         logger.debug(f"Dropped {package} by {self}")
 
-        package.assigned_pickup.receive_package(package)
+        package.assigned_pickup.add_package(package)
         package.reached_pickup = True
 
     @staticmethod
     def create_vehicle_list() -> None:
+        """Populate vehicle object list with SUMO IDs from current simulation."""
         for vehicle_id in traci.vehicle.getIDList():
-            Vehicle(vehicle_id, VEHICLE_CAPACITY())
+            Vehicle(vehicle_id)

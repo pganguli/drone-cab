@@ -1,3 +1,10 @@
+"""Package (or parcel) class.
+
+This class implements the packages / parcels that need to be
+delivered to the residences that have requested them from the warehouse.
+
+"""
+
 from __future__ import annotations
 
 import logging
@@ -5,90 +12,50 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from drone_cab.pickup import Pickup
-    from drone_cab.vehicle import Vehicle
-    from drone_cab.warehouse import Warehouse
 
 import traci
 
-from drone_cab.utils import (
-    euclidean_distance,
-    get_lane_list,
-    get_nearest_edge_id,
-    shape2centroid,
-)
+from drone_cab.utils import shape2centroid
 
 logger = logging.getLogger(__name__)
 
 
 class Package:
+    """Packages (or parcels) that get transported by cabs (vehicles) and drones.
+
+    Args:
+        destination_id: SUMO ID of residence where this package needs to be delivered.
+
+    Attributes:
+        destination_id: SUMO ID of destination residence.
+        destination_center: 2-D coordinates of the centroid of destination residence's polygon.
+        assigned_pickup: Pikcup object that this package has been assigned to.
+        reached_pickup: True if package has reached its assigned pickup point.
+        reached_destination: True if package has reached its destination residence.
+    """
+
     def __init__(self, destination_id: str) -> None:
-        self.id = destination_id
-        traci.polygon.setColor(self.id, (222, 52, 235))
-        self.center = shape2centroid(traci.polygon.getShape(self.id))
+        self.destination_id = destination_id
+        traci.polygon.setColor(self.destination_id, (222, 52, 235))
+        self.destination_center = shape2centroid(traci.polygon.getShape(self.destination_id))
         self.assigned_pickup: Pickup | None = None
         self.reached_pickup: bool = False
-        # self.reached_pickup_time = 0
         self.reached_destination: bool = False
         logger.debug(f"Created {self}")
 
-        # self.nearest_edge_id = get_nearest_edge_id(self.id, get_lane_list())
-
     def __repr__(self) -> str:
-        return f"Package({self.id})"
+        return f"Package({self.destination_id})"
 
-    def assign_pickup(self, pickup: Pickup) -> None:
+    def set_pickup(self, pickup: Pickup) -> None:
+        """Set assigned pickup point for this package.
+
+        Args:
+            pickup: Pickup object that this package has been assigned to.
+        """
         self.assigned_pickup = pickup
         logger.debug(f"Assigned pickup of {self} to {pickup}")
 
-    def assign_package_pickup(self, pickup_list: list[Pickup]) -> Pickup | None:
-        pickup_list = sorted(
-            pickup_list,
-            key=lambda pickup: euclidean_distance(self.center, pickup.center),
-        )
-
-        for pickup in pickup_list:
-            if len(pickup.assigned_package_set) < pickup.capacity:
-                pickup.assign_package(self)
-                self.assign_pickup(pickup)
-                return pickup
-
-        logger.debug(f"Failed to assign pickup of {self} to any pickup")
-        return None
-
-    def assign_package_vehicle(
-        self, vehicle_list: list[Vehicle], warehouse: Warehouse
-    ) -> Vehicle | None:
-        try:
-            assert (
-                self.assigned_pickup is not None
-            ), f"Attempted to assign vehicle to {self} with no assigned pickup"
-        except AssertionError as e:
-            logger.error("AssertionError", exc_info=True)
-            raise e
-
-        vehicle_list = sorted(
-            list(
-                filter(
-                    lambda vehicle: vehicle.is_visiting_warehouse(warehouse),
-                    vehicle_list,
-                )
-            ),
-            key=lambda vehicle: vehicle.get_distance_along_road(warehouse.center),
-        )
-
-        for vehicle in vehicle_list:
-            if (
-                len(vehicle.carrying_package_set) < vehicle.capacity
-                and self.assigned_pickup.nearest_edge_id
-                in vehicle.get_route_edge_id_list()
-            ):
-                vehicle.assign_package(self)
-                logger.debug(f"Assigned vehicle of {self} to {vehicle}")
-                return vehicle
-
-        logger.debug(f"Failed to assign {self} to any vehicle")
-        return None
-
-    def package_delivered(self):
+    def mark_delivered(self):
+        """Mark package as delivered to destination residence."""
         self.reached_destination = True
         logger.debug(f"{self} reached destination")

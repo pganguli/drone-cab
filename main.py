@@ -3,14 +3,13 @@ import os
 import sys
 from collections import deque
 
-from drone_cab.drone import DRONE_TIMEOUT
-
+from drone_cab import Package, Pickup, Vehicle, Warehouse
+from drone_cab.assign import assign_package_pickup, assign_package_vehicle
+from drone_cab.tunables import DRONE_MAX_IDLE_STEPS, PICKUP_CENTER_LIST
 
 if "SUMO_HOME" in os.environ:
     sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
 import traci
-
-from drone_cab import Package, Pickup, Vehicle, Warehouse
 
 logger = logging.getLogger(__name__)
 
@@ -37,20 +36,10 @@ def poll_packages(pickup_list: list[Pickup]):
 
     pickup_list = list(filter(lambda pickup: pickup.received_package_set, pickup_list))
     for pickup in pickup_list:
-        if pickup.drone.timer > DRONE_TIMEOUT() and pickup.drone.parked:
+        if pickup.drone.idle_steps > DRONE_MAX_IDLE_STEPS() and pickup.drone.parked:
             pickup.prepare_drone()
         else:
-            pickup.drone.timer += 1
-    #     idle_time = max(
-    #         map(
-    #             lambda package: traci.simulation.getTime()
-    #             - package.reached_pickup_time,
-    #             pickup.received_package_set,
-    #         )
-    #     )
-    #     if idle_time > PACKAGE_TIMEOUT():
-    #         logger.warning(f"Package idle time exceeded at {pickup}")
-    #         pickup.prepare_drone()
+            pickup.drone.idle_steps += 1
 
 
 if __name__ == "__main__":
@@ -76,28 +65,29 @@ if __name__ == "__main__":
     )
     logger.info("traci.start()")
 
-    warehouse = Warehouse(Warehouse.create_warehouse_id())
-    pickup_list = Pickup.create_pickup_list()
+    warehouse = Warehouse()
+    pickup_list = [Pickup(pickup_center) for pickup_center in PICKUP_CENTER_LIST()]
     Vehicle.create_vehicle_list()
 
     package_queue: deque["Package"] = deque()
     for step in range(200):
-        logger.info(f"traci.simulationStep() at {step=}")
+        logger.info(f"Simulation {step=}")
 
         poll_packages(pickup_list)
 
         if step == 30:
-            package_queue.append(Package("234807099"))
-            package_queue.append(Package("239713538"))
-            package_queue.append(Package("359039090"))
+            for destination_id in ["234807099", "239713538", "359039090"]:
+                package_queue.append(
+                    Package(destination_id)
+                )
 
         while package_queue:
             package = package_queue.popleft()
             try:
-                pickup = package.assign_package_pickup(pickup_list)
+                pickup = assign_package_pickup(package, pickup_list)
                 assert pickup is not None, f"Failed to assign {package} to any pickup"
-                vehicle = package.assign_package_vehicle(
-                    Vehicle.vehicle_list, warehouse
+                vehicle = assign_package_vehicle(
+                    package, Vehicle.vehicle_list, warehouse
                 )
                 assert vehicle is not None, f"Failed to assign {package} to any vehicle"
             except AssertionError:
@@ -105,6 +95,7 @@ if __name__ == "__main__":
                 logger.debug("AssertionError", exc_info=True)
 
         traci.simulationStep()
+        logger.info("traci.simulationStep()")
 
     traci.close()
     logger.info("traci.close()")

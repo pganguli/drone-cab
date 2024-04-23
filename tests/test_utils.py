@@ -1,7 +1,6 @@
 import gzip
 import json
 import os
-import pickle
 import sys
 
 if "SUMO_HOME" in os.environ:
@@ -71,7 +70,7 @@ def test_get_building_id_list() -> None:
 
 
 def test_get_nearest_edge_id() -> None:
-    from drone_cab.utils import get_lane_list, get_nearest_edge_id
+    from drone_cab.utils import get_nearest_edge_id
 
     traci.start(
         [
@@ -84,6 +83,6 @@ def test_get_nearest_edge_id() -> None:
     )
 
     try:
-        assert get_nearest_edge_id("239796134", get_lane_list()) == "158320863#6"
+        assert get_nearest_edge_id("239796134") == "158320863#6"
     finally:
         traci.close()
