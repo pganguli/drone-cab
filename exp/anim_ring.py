@@ -16,7 +16,7 @@ def euclidean_distance(a, b):
 
 DRONE_CENTER = (908.783925, 987.6503665714287)
 DRONE_SPEED = 2
-DRONE_RANGE = 200
+DRONE_RANGE = 500
 RESIDENCE_CENTERS = [
     (910.3206866, 982.6598806),
     (897.7645155999999, 983.6238812000001),
@@ -121,6 +121,7 @@ farthest_residence = max(
 )
 radius = euclidean_distance(DRONE_CENTER, farthest_residence)
 theta = DRONE_RANGE / radius - 2
+print(radius)
 
 farthest_distance = ax.plot(
     (DRONE_CENTER[0], farthest_residence[0]),
@@ -132,13 +133,25 @@ farthest_residence_angle = math.atan2(
     farthest_residence[1] - DRONE_CENTER[1], farthest_residence[0] - DRONE_CENTER[0]
 )
 
+theta1 = math.degrees(farthest_residence_angle - theta / 2)
+theta2 = math.degrees(farthest_residence_angle + theta / 2)
+if abs(theta1) + abs(theta2) > 360:
+    theta1 = 0
+    theta2 = 360
+
 sector = Wedge(
     center=DRONE_CENTER,
     r=radius,
-    theta1=math.degrees(farthest_residence_angle - theta / 2),
-    theta2=math.degrees(farthest_residence_angle + theta / 2),
+    theta1=theta1,
+    theta2=theta2,
     alpha=0.25,
     color="orange",
+)
+print(
+    sector,
+    math.degrees(farthest_residence_angle),
+    math.degrees(farthest_residence_angle - theta / 2),
+    math.degrees(farthest_residence_angle + theta / 2),
 )
 ax.add_patch(sector)
 
@@ -172,6 +185,7 @@ G = nx.Graph()
 G.add_node(DRONE_CENTER)
 for residence in RESIDENCE_CENTERS:
     if sector.contains_point(ax.transData.transform(residence)):
+        print(residence)
         G.add_node(residence)
 G.add_weighted_edges_from(
     [

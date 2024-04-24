@@ -79,7 +79,7 @@ if __name__ == "__main__":
         poll_packages(pickup_list)
 
         if step == 30:
-            for destination_id in ["234807099", "239713538"]:#, "359039090"]:
+            for destination_id in ["234807099", "239713538", "359039090"]:
                 package_queue.append(
                     Package(destination_id)
                 )

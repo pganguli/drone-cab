@@ -74,7 +74,7 @@ def DRONE_RANGE() -> float:
     Returns:
         A (possibly random) flying range for a drone.
     """
-    return 200.0
+    return 500.0
 
 
 def DRONE_SPEED() -> float:
@@ -91,4 +91,4 @@ def PICKUP_CAPACITY() -> int:
     Returns:
         A (possibly random) capacity for a pickup.
     """
-    return 2  # random.randint(5, 15)
+    return 3  # random.randint(5, 15)

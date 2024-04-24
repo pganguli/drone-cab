@@ -130,9 +130,8 @@ class Pickup:
             key=lambda package: euclidean_distance(self.center, package.center),
         )
         for i in self.received_package_set:
-            logger.debug(f"{i}, {euclidean_distance(self.center, i.center)}")
+            logger.debug(f"{i} at distance {euclidean_distance(self.center, i.center)} from {self}")
 
-        logger.debug(f"{farthest_package=}")
 
         radius = euclidean_distance(self.center, farthest_package.center)
         theta = self.drone.range / radius - 2
@@ -141,13 +140,21 @@ class Pickup:
             farthest_package.center[1] - self.center[1],
             farthest_package.center[0] - self.center[0],
         )
+        
+        theta1 = math.degrees(farthest_residence_angle - theta / 2)
+        theta2 = math.degrees(farthest_residence_angle + theta / 2)
+        if abs(theta1) + abs(theta2) > 360:
+            theta1 = 0
+            theta2 = 360
 
         self.sector = Wedge(
             center=self.center,
-            r=radius,
-            theta1=math.degrees(farthest_residence_angle - theta / 2),
-            theta2=math.degrees(farthest_residence_angle + theta / 2),
+            r=radius+1,
+            theta1=theta1,
+            theta2=theta2,
         )
+
+        logger.debug(f"sector: {self.sector}")
 
         for i in self.received_package_set:
             logger.debug(f"{i}, in sector: {self.sector.contains_point(i.center)}")
@@ -160,6 +167,7 @@ class Pickup:
             ]
         )
         logger.debug(f"{delivery_packages=}")
+        
         while len(delivery_packages) > self.drone.capacity:
             package_to_remove = min(
                 delivery_packages,

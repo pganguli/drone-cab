@@ -109,6 +109,7 @@ class Drone(traci.StepListener):
         """Start the TSP route of the drone to start delivery of carrying_package_set."""
         
         self.route = iter(self.christofides_route())
+        logger.debug(f"Drone carrying packages: {self.carrying_package_set}")
         self.current_position = next(self.route).center
         self.current_target = next(self.route)
         self.parked = False
