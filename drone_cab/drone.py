@@ -29,17 +29,6 @@ class Drone(traci.StepListener):
         drone_capacity (optional): Maximum number of packages that this drone can carry. Defaults to tunable constant.
         drone_speed (optional): Maximum flying speed of this drone. Defaults to tunable constant.
         drone_range (optional): Maximum flying range of this drone. Defaults to tunable constant.
-
-    Attributes:
-        pickup_id: SUMO ID of the pickup point on which this drone sits.
-        center: 2-D coordinates of the center of the pickup point polyon on which this drone sits.
-        capacity: Maximum number of packages that this drone can carry.
-        speed: Maximum flying speed of this drone.
-        range: Maximum flying range of this drone.
-        parked: True if drone is currently sitting idle at the pickup point.
-        distance_travelled: Total flying distance covered by the drone so far.
-        idle_steps: Number of idle time steps spent by this drone sitting parked at the pickup point.
-        carrying_package_set: Set of packages currently being carried by this drone.
     """
 
     def __init__(
@@ -49,18 +38,31 @@ class Drone(traci.StepListener):
         drone_speed: float = DRONE_SPEED(),
         drone_range: float = DRONE_RANGE(),
     ) -> None:
-        self.pickup_id = pickup_id
-        self.center = shape2centroid(traci.polygon.getShape(self.pickup_id))
-        self.capacity = drone_capacity
-        self.speed = drone_speed
-        self.range = drone_range
-        self.parked = True
-        self.distance_travelled = 0.0
-        self.idle_steps = 0
-        self.route: Iterator[Drone | Package] | None = None
+        self.pickup_id: str = (
+            pickup_id  #: SUMO ID of the pickup point on which this drone sits.
+        )
+        self.center: tuple[float, float] = shape2centroid(
+            traci.polygon.getShape(self.pickup_id)
+        )  #: 2-D coordinates of the center of the pickup point polyon on which this drone sits.
+        self.capacity: int = (
+            drone_capacity  #: Maximum number of packages that this drone can carry.
+        )
+        self.speed: float = drone_speed  #: Maximum flying speed of this drone.
+        self.range: float = drone_range  #: Maximum flying range of this drone.
+        self.parked: bool = (
+            True  #: True if drone is currently sitting idle at the pickup point.
+        )
+        self.distance_travelled: float = (
+            0.0  #: Total flying distance covered by the drone so far.
+        )
+        self.distance_travelled_per_flight: float = 0.0
+        self.idle_steps: int = 0  #: Number of idle time steps spent by this drone sitting parked at the pickup point.
+        self.route: Iterator[Drone | Package] = iter([])
         self.current_target: Drone | Package = self
         self.current_position: tuple[float, float] = self.center
-        self.carrying_package_set: set[Package] = set()
+        self.carrying_package_set: set[Package] = (
+            set()
+        )  #: Set of packages currently being carried by this drone.
 
         logger.debug(f"Created {self}")
 
@@ -107,21 +109,21 @@ class Drone(traci.StepListener):
 
     def start_tsp(self) -> None:
         """Start the TSP route of the drone to start delivery of carrying_package_set."""
-        
         self.route = iter(self.christofides_route())
         logger.debug(f"Drone carrying packages: {self.carrying_package_set}")
         self.current_position = next(self.route).center
         self.current_target = next(self.route)
         self.parked = False
+        self.distance_travelled_per_flight = 0.0
 
     def end_tsp(self) -> None:
         """End the TSP route of the drone."""
-        
-        self.route = None
+        self.route = iter([])
         self.current_position = self.center
         self.current_target = self
         self.parked = True
         self.idle_steps = 0
+        self.distance_travelled += self.distance_travelled_per_flight
 
     def drop_package(self, package: Package) -> None:
         """Drop off a package being cuurently carried by this drone at its destination residence.
@@ -138,39 +140,43 @@ class Drone(traci.StepListener):
             return
 
         self.carrying_package_set.remove(package)
-        package.mark_delivered()
+        package.mark_delivered(distance_drone=self.distance_travelled_per_flight)
         logger.debug(f"Delivered {package} by {self}")
 
-    def step(self, t: int = 0) -> bool:
-        if not self.parked:
-            if self.current_position == self.current_target.center:
-                logger.debug(
-                    f"{self} reached target {self.current_target}"
-                )
-                if isinstance(self.current_target, Package):
-                    self.drop_package(self.current_target)
-                try:
-                    self.current_target = next(self.route)
-                except StopIteration:
-                    self.end_tsp()
+    def fly_along_route(self):
+        if self.current_position == self.current_target.center:
+            logger.debug(f"{self} reached target {self.current_target}")
+            if isinstance(self.current_target, Package):
+                self.drop_package(self.current_target)
+            try:
+                self.current_target = next(self.route)
+            except StopIteration:
+                self.end_tsp()
 
-            dist_left = euclidean_distance(
-                self.current_position, self.current_target.center
-            )
-            distance_step = min(self.speed, dist_left)
-            x, y = self.current_position
-            target_x, target_y = self.current_target.center
-            theta = math.atan2(
-                target_y - y,
-                target_x - x,
-            )
-            self.current_position = (
-                x + distance_step * math.cos(theta),
-                y + distance_step * math.sin(theta),
-            )
-            self.distance_travelled += distance_step
-            logger.debug(
-                f"{self} travelled by {distance_step} towards {self.current_target}"
-            )
+        dist_left = euclidean_distance(
+            self.current_position, self.current_target.center
+        )
+        distance_step = min(self.speed, dist_left)
+        x, y = self.current_position
+        target_x, target_y = self.current_target.center
+        theta = math.atan2(
+            target_y - y,
+            target_x - x,
+        )
+        self.current_position = (
+            x + distance_step * math.cos(theta),
+            y + distance_step * math.sin(theta),
+        )
+        self.distance_travelled_per_flight += distance_step
+        logger.debug(
+            f"{self} travelled by {distance_step} towards {self.current_target}"
+        )
+
+    def step(self, t: int = 0):
+        if t > 0:
+            logger.debug(f"{t=} in step() of {self}")
+
+        if not self.parked:
+            self.fly_along_route()
 
         return True

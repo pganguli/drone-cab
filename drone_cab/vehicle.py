@@ -21,25 +21,26 @@ import traci
 logger = logging.getLogger(__name__)
 
 
-class Vehicle:
+class Vehicle(traci.StepListener):
     """Vehicles that carry packages from the warehouse to pickup points.
 
     Args:
         vehicle_id: SUMO ID of vehicle.
         vehicle_capacity (optional): Maximum number of packages that this vehicle can carry. Defaults to tunable constant.
-
-    Attributes:
-        id: SUMO ID of vehicle.
-        capacity: Maximum number of packages that this vehicle can carry.
-        carrying_package_set: Set of packages currently being carried by this vehicle.
     """
 
     vehicle_list: list[Vehicle] = []  #: List of all vehicle objects.
 
-    def __init__(self, vehicle_id: str, vehicle_capacity: int = VEHICLE_CAPACITY()) -> None:
-        self.id = vehicle_id
-        self.capacity = vehicle_capacity
-        self.carrying_package_set: set[Package] = set()
+    def __init__(
+        self, vehicle_id: str, vehicle_capacity: int = VEHICLE_CAPACITY()
+    ) -> None:
+        self.id: str = vehicle_id  #: SUMO IF of vehicle
+        self.capacity: int = (
+            vehicle_capacity  #: Maximum number of packages that this vehicle can carry
+        )
+        self.carrying_package_set: set[Package] = (
+            set()
+        )  #: Set of packages being carried by this vehicle
         if self not in Vehicle.vehicle_list:
             Vehicle.vehicle_list.append(self)
             logger.debug(f"Created {self}")
@@ -149,8 +150,45 @@ class Vehicle:
         package.assigned_pickup.add_package(package)
         package.reached_pickup = True
 
+    def check_reached_pickup(self):
+        packages_to_drop: list[Package] = []
+
+        for package in self.carrying_package_set:
+            try:
+                assert (
+                    package.assigned_pickup is not None
+                ), f"Attempted to query vehicle on {package} with no assigned pickup"
+            except AssertionError as e:
+                logger.error("AssertionError", exc_info=True)
+                raise e
+
+            if self.get_road_id() == package.assigned_pickup.nearest_edge_id:
+                packages_to_drop.append(package)
+
+        for package in packages_to_drop:
+            self.drop_package(package)
+
+    def step(self, t: int = 0):
+        if t > 0:
+            logger.debug(f"{t=} in step() of {self}")
+
+        if self.carrying_package_set:
+            self.check_reached_pickup()
+
+        return True
+
     @staticmethod
     def create_vehicle_list() -> None:
         """Populate vehicle object list with SUMO IDs from current simulation."""
         for vehicle_id in traci.vehicle.getIDList():
             Vehicle(vehicle_id)
+
+    @staticmethod
+    def get_vehicle_list() -> list[Vehicle]:
+        """Return vehicle object list with SUMO IDs from current simulation.
+
+        Returns:
+            List of vehicle objects.
+        """
+        Vehicle.create_vehicle_list()
+        return Vehicle.vehicle_list

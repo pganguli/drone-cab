@@ -30,6 +30,14 @@ def assign_package_pickup(package: Package, pickup_list: list[Pickup]) -> Pickup
     Returns:
         Assigned pickup object if successful, else None.
     """
+    try:
+        assert (
+            package.assigned_pickup is None
+        ), f"Attempted to assign pickup to {package} with already assigned pickup"
+    except AssertionError:
+        logger.error("AssertionError", exc_info=True)
+        return
+
     pickup_list = sorted(
         pickup_list,
         key=lambda pickup: euclidean_distance(package.center, pickup.center),
@@ -46,7 +54,7 @@ def assign_package_pickup(package: Package, pickup_list: list[Pickup]) -> Pickup
 
 
 def assign_package_vehicle(
-    package, vehicle_list: list[Vehicle], warehouse: Warehouse
+    package: Package, vehicle_list: list[Vehicle], warehouse: Warehouse
 ) -> Vehicle | None:
     """Attempt to assign a vehicle to the given package.
 
@@ -69,24 +77,30 @@ def assign_package_vehicle(
         logger.error("AssertionError", exc_info=True)
         raise e
 
-    vehicle_list = sorted(
-        list(
-            filter(
-                lambda vehicle: vehicle.is_visiting_warehouse(warehouse),
-                vehicle_list,
+    vehicle_distance = sorted(
+        [
+            (vehicle, vehicle.get_distance_along_road(warehouse.center))
+            for vehicle in filter(
+                lambda vehicle: vehicle.is_visiting_warehouse(warehouse), vehicle_list
             )
-        ),
-        key=lambda vehicle: vehicle.get_distance_along_road(warehouse.center),
+        ],
+        key=lambda vehicle_distance: vehicle_distance[1],
     )
 
-    for vehicle in vehicle_list:
+    for vehicle, distance in vehicle_distance:
         if (
             len(vehicle.carrying_package_set) < vehicle.capacity
             and package.assigned_pickup.nearest_edge_id
             in vehicle.get_route_edge_id_list()
         ):
             vehicle.add_package(package)
-            logger.debug(f"Assigned vehicle of {package} to {vehicle}")
+            distance_to_pickup = vehicle.get_distance_along_road(
+                package.assigned_pickup.center
+            )
+            package.distance_vehicle += distance_to_pickup
+            logger.debug(
+                f"Assigned vehicle of {package} to {vehicle} with {distance=} from warehouse and {distance_to_pickup=}"
+            )
             return vehicle
 
     logger.debug(f"Failed to assign {package} to any vehicle")

@@ -85,6 +85,7 @@ def DRONE_SPEED() -> float:
     """
     return 2.0
 
+
 def PICKUP_CAPACITY() -> int:
     """Generate capacities for pickups.
 

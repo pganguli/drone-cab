@@ -16,7 +16,7 @@ import traci
 from matplotlib.patches import Wedge
 
 from drone_cab.drone import Drone
-from drone_cab.tunables import PICKUP_CAPACITY
+from drone_cab.tunables import PICKUP_CAPACITY, PICKUP_CENTER_LIST, DRONE_MAX_IDLE_STEPS
 from drone_cab.utils import euclidean_distance, get_nearest_edge_id
 
 if TYPE_CHECKING:
@@ -25,7 +25,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 
-class Pickup:
+class Pickup(traci.StepListener):
     """Pickup points stroe packages after being dropped off by vehicles, until a drone picks them up.
 
     Args:
@@ -130,8 +130,9 @@ class Pickup:
             key=lambda package: euclidean_distance(self.center, package.center),
         )
         for i in self.received_package_set:
-            logger.debug(f"{i} at distance {euclidean_distance(self.center, i.center)} from {self}")
-
+            logger.debug(
+                f"{i} at distance {euclidean_distance(self.center, i.center)} from {self}"
+            )
 
         radius = euclidean_distance(self.center, farthest_package.center)
         theta = self.drone.range / radius - 2
@@ -140,7 +141,7 @@ class Pickup:
             farthest_package.center[1] - self.center[1],
             farthest_package.center[0] - self.center[0],
         )
-        
+
         theta1 = math.degrees(farthest_residence_angle - theta / 2)
         theta2 = math.degrees(farthest_residence_angle + theta / 2)
         if abs(theta1) + abs(theta2) > 360:
@@ -149,7 +150,7 @@ class Pickup:
 
         self.sector = Wedge(
             center=self.center,
-            r=radius+1,
+            r=radius + 1,
             theta1=theta1,
             theta2=theta2,
         )
@@ -158,7 +159,7 @@ class Pickup:
 
         for i in self.received_package_set:
             logger.debug(f"{i}, in sector: {self.sector.contains_point(i.center)}")
-        
+
         delivery_packages = set(
             [
                 package
@@ -167,7 +168,7 @@ class Pickup:
             ]
         )
         logger.debug(f"{delivery_packages=}")
-        
+
         while len(delivery_packages) > self.drone.capacity:
             package_to_remove = min(
                 delivery_packages,
@@ -185,11 +186,30 @@ class Pickup:
             self.drone.assign_package(package)
 
         try:
-            assert (
-                self.drone.carrying_package_set
-            ), f"{self.drone} is carrying no packages, yet TSP initiated. {self.drone.carrying_package_set}"
+            assert self.drone.carrying_package_set, f"{self.drone} is carrying no packages, yet TSP initiated. {self.drone.carrying_package_set}"
         except AssertionError as e:
             logger.error("AssertionError", exc_info=True)
             raise e
 
         self.drone.start_tsp()
+
+    def step(self, t: int = 0):
+        if t > 0:
+            logger.debug(f"{t=} in step() of {self}")
+
+        if self.received_package_set:
+            if self.drone.idle_steps > DRONE_MAX_IDLE_STEPS() and self.drone.parked:
+                self.init_tsp()
+            else:
+                self.drone.idle_steps += 1
+
+        return True
+
+    @staticmethod
+    def create_pickup_list() -> list[Pickup]:
+        """Produce pickup object list created with preset tunable pickup_center values.
+
+        Returns:
+            List of pickup objects.
+        """
+        return [Pickup(pickup_center) for pickup_center in PICKUP_CENTER_LIST()]
