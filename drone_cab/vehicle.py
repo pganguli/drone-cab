@@ -169,8 +169,7 @@ class Vehicle(traci.StepListener):
             self.drop_package(package)
 
     def step(self, t: int = 0):
-        if t > 0:
-            logger.debug(f"{t=} in step() of {self}")
+        t += 0
 
         if self.carrying_package_set:
             self.check_reached_pickup()

@@ -173,8 +173,7 @@ class Drone(traci.StepListener):
         )
 
     def step(self, t: int = 0):
-        if t > 0:
-            logger.debug(f"{t=} in step() of {self}")
+        t += 0
 
         if not self.parked:
             self.fly_along_route()

@@ -13,12 +13,7 @@ import traci
 logger = logging.getLogger(__name__)
 
 
-def poll_packages():
-    for vehicle in Vehicle.get_vehicle_list():
-        vehicle.check_reached_pickup()
-
-
-if __name__ == "__main__":
+def main():
     logging.basicConfig(
         filename="drone_cab.log",
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
@@ -46,15 +41,14 @@ if __name__ == "__main__":
     for pickup in pickup_list:
         traci.addStepListener(pickup.drone)
         traci.addStepListener(pickup)
-    # for vehicle in Vehicle.get_vehicle_list():
-    #     traci.addStepListener(vehicle)
 
     package_queue: deque[Package] = deque()
 
     for step in range(400):
         logger.info(f"Simulation {step=}")
 
-        poll_packages()
+        for vehicle in Vehicle.get_vehicle_list():
+            vehicle.step()
 
         if step == 30:
             for destination_id in ["234807099", "239713538", "359039090"]:
@@ -78,3 +72,7 @@ if __name__ == "__main__":
 
     traci.close()
     logger.info("traci.close()")
+
+
+if __name__ == "__main__":
+    main()

@@ -194,8 +194,7 @@ class Pickup(traci.StepListener):
         self.drone.start_tsp()
 
     def step(self, t: int = 0):
-        if t > 0:
-            logger.debug(f"{t=} in step() of {self}")
+        t += 0
 
         if self.received_package_set:
             if self.drone.idle_steps > DRONE_MAX_IDLE_STEPS() and self.drone.parked:
