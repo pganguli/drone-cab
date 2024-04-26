@@ -92,4 +92,4 @@ def PICKUP_CAPACITY() -> int:
     Returns:
         A (possibly random) capacity for a pickup.
     """
-    return 3  # random.randint(5, 15)
+    return 2  # random.randint(5, 15)
