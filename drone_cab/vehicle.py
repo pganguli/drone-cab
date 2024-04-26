@@ -180,8 +180,14 @@ class Vehicle(traci.StepListener):
     @staticmethod
     def create_vehicle_list() -> None:
         """Populate vehicle object list with SUMO IDs from current simulation."""
-        for vehicle_id in traci.vehicle.getIDList():
+        traci_vehicle_list: list[str] = traci.vehicle.getIDList()
+        for vehicle_id in traci_vehicle_list:
             Vehicle(vehicle_id)
+        
+        for vehicle in Vehicle.vehicle_list.copy():
+            if vehicle.id not in traci_vehicle_list:
+                Vehicle.vehicle_list.remove(vehicle)
+                logger.debug(f"Removed {vehicle} since not in traci")
 
     @staticmethod
     def get_vehicle_list() -> list[Vehicle]:
