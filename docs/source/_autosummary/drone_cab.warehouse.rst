@@ -1,4 +1,4 @@
-﻿drone\_cab.warehouse
+drone\_cab.warehouse
 ====================
 
 .. automodule:: drone_cab.warehouse

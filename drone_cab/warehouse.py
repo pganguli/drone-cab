@@ -20,17 +20,20 @@ class Warehouse:
 
     Args:
         warehouse_id (optional): SUMO ID of warehouse. Defaults to tunable constant.
+
+    Attributes:
+        id: SUMO ID of this warehouse.
+        center: 2-D coordinates of the centroid of this warehouse's polygon.
+        nearest_edge_id: SUMO ID of road edge that is closest to this warehouse.
     """
 
     def __init__(self, warehouse_id: str = WAREHOUSE_ID()) -> None:
-        self.id: str = warehouse_id  #: SUMO ID of this warehouse.
+        self.id: str = warehouse_id
         traci.polygon.setColor(self.id, (0, 0, 255))
         self.center: tuple[float, float] = shape2centroid(
             traci.polygon.getShape(self.id)
-        )  #: 2-D coordinates of the centroid of this warehouse's polygon.
-        self.nearest_edge_id = get_nearest_edge_id(
-            self.id
-        )  #: SUMO ID of road edge that is closest to this warehouse.
+        )
+        self.nearest_edge_id = get_nearest_edge_id(self.id)
         logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:

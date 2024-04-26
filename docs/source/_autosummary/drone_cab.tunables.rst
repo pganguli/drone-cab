@@ -1,4 +1,4 @@
-﻿drone\_cab.tunables
+drone\_cab.tunables
 ===================
 
 .. automodule:: drone_cab.tunables

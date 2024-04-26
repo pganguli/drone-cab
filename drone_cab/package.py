@@ -28,23 +28,26 @@ class Package:
 
     Note:
         self.center has to be named this way to be compatiple with drone.center for christofides_route()
+
+    Attributes:
+        destination_id: SUMO ID of destination residence.
+        center: 2-D coordinates of the centroid of destination residence's polygon.
+        assigned_pickup: Pickup object that this package has been assigned to.
+        reached_pickup: True if package has reached its assigned pickup point.
+        reached_destination: True if package has reached its destination residence.
+        distance_drone: Total distance by drone that this package has travelled.
+        distance_vehicle: Total distance by vehicle (cab) that this package has travelled.
     """
 
     def __init__(self, destination_id: str) -> None:
-        self.destination_id: str = destination_id  #: SUMO ID of destination residence.
+        self.destination_id: str = destination_id
         traci.polygon.setColor(self.destination_id, (222, 52, 235))
         self.center: tuple[float, float] = shape2centroid(
             traci.polygon.getShape(self.destination_id)
-        )  #: 2-D coordinates of the centroid of destination residence's polygon.
-        self.assigned_pickup: Pickup | None = (
-            None  #: Pickup object that this package has been assigned to.
         )
-        self.reached_pickup: bool = (
-            False  #: True if package has reached its assigned pickup point.
-        )
-        self.reached_destination: bool = (
-            False  #: True if package has reached its destination residence.
-        )
+        self.assigned_pickup: Pickup | None = None
+        self.reached_pickup: bool = False
+        self.reached_destination: bool = False
         self.distance_drone: float = 0.0
         self.distance_vehicle: float = 0.0
         logger.debug(f"Created {self} with center {self.center}")
@@ -66,4 +69,6 @@ class Package:
         self.reached_destination = True
         self.distance_drone = distance_drone
         logger.debug(f"{self} reached destination")
-        print(f"{self} delivered with {self.distance_vehicle=} and {self.distance_drone=}")
+        print(
+            f"{self} delivered with {self.distance_vehicle=} and {self.distance_drone=}"
+        )

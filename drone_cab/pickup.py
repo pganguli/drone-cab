@@ -36,10 +36,9 @@ class Pickup(traci.StepListener):
         center: 2-D coordinates of the center of the pickup point polyon.
         capacity: Maximum number of packages that this pikcup point can store.
         id: SUMO ID of the pickup point.
-        capacity: Maximum number of packages that this drone can carry.
-        drone: Drone object that services (sits at) this pickup point.
         assigned_package_set: Packages expected to be delivered to this pickup point by vehicles.
         received_package_set: Packages currently being stored at this pickup point.
+        drone: Drone object that services (sits at) this pickup point.
         nearest_edge_id: SUMO ID of the raod edge closest to this pickup point polygon.
     """
 
@@ -48,9 +47,9 @@ class Pickup(traci.StepListener):
         pickup_center: tuple[float, float],
         pickup_capacity: int = PICKUP_CAPACITY(),
     ) -> None:
-        self.center = pickup_center
-        self.capacity = pickup_capacity
-        self.id = f"pickup#{hash(self.center)}"
+        self.center: tuple[float, float] = pickup_center
+        self.capacity: int = pickup_capacity
+        self.id: str = f"pickup#{hash(self.center)}"
         self.assigned_package_set: set[Package] = set()
         self.received_package_set: set[Package] = set()
 
@@ -68,8 +67,8 @@ class Pickup(traci.StepListener):
             fill=True,
         )
 
-        self.drone = Drone(self.id)
-        self.nearest_edge_id = get_nearest_edge_id(self.id)
+        self.drone: Drone = Drone(self.id)
+        self.nearest_edge_id: str = get_nearest_edge_id(self.id)
 
         logger.debug(f"Created {self}")
 

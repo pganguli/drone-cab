@@ -1,4 +1,4 @@
-﻿drone\_cab.assign
+drone\_cab.assign
 =================
 
 .. automodule:: drone_cab.assign

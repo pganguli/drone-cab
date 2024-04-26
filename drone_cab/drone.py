@@ -29,6 +29,21 @@ class Drone(traci.StepListener):
         drone_capacity (optional): Maximum number of packages that this drone can carry. Defaults to tunable constant.
         drone_speed (optional): Maximum flying speed of this drone. Defaults to tunable constant.
         drone_range (optional): Maximum flying range of this drone. Defaults to tunable constant.
+
+    Attributes:
+        pickup_id: SUMO ID of the pickup point on which this drone sits.
+        center: 2-D coordinates of the center of the pickup point polyon on which this drone sits.
+        capacity: Maximum number of packages that this drone can carry.
+        speed: Maximum flying speed of this drone.
+        range: float = drone_range  #: Maximum flying range of this drone.
+        parked: True if drone is currently sitting idle at the pickup point.
+        distance_travelled: Total flying distance covered by the drone so far.
+        distance_travelled_per_flight: Flying distance covered by the drone in the current TSP route so far.
+        idle_steps: Number of idle time steps spent by this drone sitting parked at the pickup point.
+        route: Iterator over ordered list of target objects that comprises a full TSP route for this drone.
+        current_target: Destination residences (package objects) or pickup point (drone object) target that this drone is supposed to fly towards.
+        current_position: 2-D coordinates of the current position of this drone.
+        carrying_package_set: Set of packages currently being carried by this drone.
     """
 
     def __init__(
@@ -38,31 +53,21 @@ class Drone(traci.StepListener):
         drone_speed: float = DRONE_SPEED(),
         drone_range: float = DRONE_RANGE(),
     ) -> None:
-        self.pickup_id: str = (
-            pickup_id  #: SUMO ID of the pickup point on which this drone sits.
-        )
+        self.pickup_id: str = pickup_id
         self.center: tuple[float, float] = shape2centroid(
             traci.polygon.getShape(self.pickup_id)
-        )  #: 2-D coordinates of the center of the pickup point polyon on which this drone sits.
-        self.capacity: int = (
-            drone_capacity  #: Maximum number of packages that this drone can carry.
         )
-        self.speed: float = drone_speed  #: Maximum flying speed of this drone.
-        self.range: float = drone_range  #: Maximum flying range of this drone.
-        self.parked: bool = (
-            True  #: True if drone is currently sitting idle at the pickup point.
-        )
-        self.distance_travelled: float = (
-            0.0  #: Total flying distance covered by the drone so far.
-        )
+        self.capacity: int = drone_capacity
+        self.speed: float = drone_speed
+        self.range: float = drone_range
+        self.parked: bool = True
+        self.distance_travelled: float = 0.0
         self.distance_travelled_per_flight: float = 0.0
-        self.idle_steps: int = 0  #: Number of idle time steps spent by this drone sitting parked at the pickup point.
+        self.idle_steps: int = 0
         self.route: Iterator[Drone | Package] = iter([])
         self.current_target: Drone | Package = self
         self.current_position: tuple[float, float] = self.center
-        self.carrying_package_set: set[Package] = (
-            set()
-        )  #: Set of packages currently being carried by this drone.
+        self.carrying_package_set: set[Package] = set()
 
         logger.debug(f"Created {self}")
 

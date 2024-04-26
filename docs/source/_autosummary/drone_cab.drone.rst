@@ -1,7 +1,7 @@
-﻿drone\_cab.pickup
-=================
+drone\_cab.drone
+================
 
-.. automodule:: drone_cab.pickup
+.. automodule:: drone_cab.drone
 
    
    
@@ -17,7 +17,7 @@
 
    .. autosummary::
    
-      Pickup
+      Drone
    
    
 

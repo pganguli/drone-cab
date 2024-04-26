@@ -27,6 +27,11 @@ class Vehicle(traci.StepListener):
     Args:
         vehicle_id: SUMO ID of vehicle.
         vehicle_capacity (optional): Maximum number of packages that this vehicle can carry. Defaults to tunable constant.
+
+    Attributes:
+        id: SUMO ID of vehicle
+        capacity: Maximum number of packages that this vehicle can carry
+        carrying_package_set: Set of packages being carried by this vehicle
     """
 
     vehicle_list: list[Vehicle] = []  #: List of all vehicle objects.
@@ -34,13 +39,9 @@ class Vehicle(traci.StepListener):
     def __init__(
         self, vehicle_id: str, vehicle_capacity: int = VEHICLE_CAPACITY()
     ) -> None:
-        self.id: str = vehicle_id  #: SUMO IF of vehicle
-        self.capacity: int = (
-            vehicle_capacity  #: Maximum number of packages that this vehicle can carry
-        )
-        self.carrying_package_set: set[Package] = (
-            set()
-        )  #: Set of packages being carried by this vehicle
+        self.id: str = vehicle_id
+        self.capacity: int = vehicle_capacity
+        self.carrying_package_set: set[Package] = set()
         if self not in Vehicle.vehicle_list:
             Vehicle.vehicle_list.append(self)
             logger.debug(f"Created {self}")

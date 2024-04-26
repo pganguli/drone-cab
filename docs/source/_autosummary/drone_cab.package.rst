@@ -1,7 +1,7 @@
-﻿drone\_cab.drone
-================
+drone\_cab.package
+==================
 
-.. automodule:: drone_cab.drone
+.. automodule:: drone_cab.package
 
    
    
@@ -17,7 +17,7 @@
 
    .. autosummary::
    
-      Drone
+      Package
    
    
 

@@ -1,4 +1,4 @@
-﻿drone\_cab.utils
+drone\_cab.utils
 ================
 
 .. automodule:: drone_cab.utils
