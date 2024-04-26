@@ -96,7 +96,7 @@ def assign_package_vehicle(
             vehicle.add_package(package)
             distance_to_pickup = vehicle.get_distance_along_road(
                 package.assigned_pickup.center
-            )
+            ) - distance
             package.distance_vehicle += distance_to_pickup
             logger.debug(
                 f"Assigned vehicle of {package} to {vehicle} with {distance=} from warehouse and {distance_to_pickup=}"

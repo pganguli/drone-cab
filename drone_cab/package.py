@@ -70,5 +70,5 @@ class Package:
         self.distance_drone = distance_drone
         logger.debug(f"{self} reached destination")
         print(
-            f"{self} delivered with {self.distance_vehicle=} and {self.distance_drone=}"
+            f"{self} delivered through {self.assigned_pickup} with vehicle distance {self.distance_vehicle:.2f} m and drone distance {self.distance_drone:.2f} m"
         )
