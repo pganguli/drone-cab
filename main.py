@@ -23,7 +23,7 @@ def main():
 
     traci.start(
         [
-            "sumo",
+            "sumo-gui",
             "-c",
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
