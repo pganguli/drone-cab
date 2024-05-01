@@ -5,6 +5,7 @@ from collections import deque
 
 from drone_cab import Package, Pickup, Vehicle, Warehouse
 from drone_cab.assign import assign_package_pickup, assign_package_vehicle
+from drone_cab.deliver_by_vehicle import deliver_by_vehicle
 
 if "SUMO_HOME" in os.environ:
     sys.path.append(os.path.join(os.environ["SUMO_HOME"], "tools"))
@@ -23,7 +24,7 @@ def main():
 
     traci.start(
         [
-            "sumo-gui",
+            "sumo",
             "-c",
             os.path.join(
                 os.path.dirname(os.path.abspath(__file__)),
@@ -51,8 +52,14 @@ def main():
             vehicle.step()
 
         if step == 30:
+            vehicle_packages = []
             for destination_id in ["234807099", "239713538", "359039090"]:
-                package_queue.append(Package(destination_id))
+                package = Package(destination_id)
+                package_queue.append(package)
+                vehicle_packages.append(package)
+
+        if step == 31:
+            deliver_by_vehicle(vehicle_packages, warehouse)
 
         while package_queue:
             package = package_queue.popleft()

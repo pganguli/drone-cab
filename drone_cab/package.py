@@ -12,6 +12,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from drone_cab.pickup import Pickup
+    from drone_cab.vehicle import Vehicle
 
 import traci
 
@@ -46,6 +47,7 @@ class Package:
             traci.polygon.getShape(self.destination_id)
         )
         self.assigned_pickup: Pickup | None = None
+        self.assigned_vehicle: Vehicle | None = None
         self.reached_pickup: bool = False
         self.reached_destination: bool = False
         self.distance_drone: float = 0.0
@@ -64,11 +66,23 @@ class Package:
         self.assigned_pickup = pickup
         logger.debug(f"Assigned pickup of {self} to {pickup}")
 
+    def set_vehicle(self, vehicle: Vehicle) -> None:
+        """Set assigned vehicle for this package.
+
+        Args:
+            Vehcile: Vehicle object that this package has been assigned to.
+        """
+        self.assigned_vehicle = vehicle
+        logger.debug(f"Assigned pickup of {self} to {vehicle}")
+
     def mark_delivered(self, distance_drone: float):
         """Mark package as delivered to destination residence."""
         self.reached_destination = True
         self.distance_drone = distance_drone
         logger.debug(f"{self} reached destination")
+        # print(
+        #     f"{self} delivered by {self.assigned_pickup.drone} with vehicle distance {self.distance_vehicle:.2f} m and drone distance {self.distance_drone:.2f} m"
+        # )
         print(
-            f"{self} delivered through {self.assigned_pickup} with vehicle distance {self.distance_vehicle:.2f} m and drone distance {self.distance_drone:.2f} m"
+            f"{self} delivered by {self.assigned_pickup.drone} with vehicle distance {self.distance_vehicle:.2f} m and drone distance {self.distance_drone:.2f} m"
         )

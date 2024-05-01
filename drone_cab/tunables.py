@@ -47,7 +47,7 @@ def VEHICLE_CAPACITY():
     Returns:
         A (possibly random) capacity for a vehicle.
     """
-    return 2  # random.randint(5, 15)
+    return 3  # random.randint(5, 15)
 
 
 def DRONE_CAPACITY() -> int:
@@ -92,4 +92,4 @@ def PICKUP_CAPACITY() -> int:
     Returns:
         A (possibly random) capacity for a pickup.
     """
-    return 2  # random.randint(5, 15)
+    return 3  # random.randint(5, 15)

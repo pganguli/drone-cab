@@ -94,6 +94,7 @@ def assign_package_vehicle(
             in vehicle.get_route_edge_id_list()
         ):
             vehicle.add_package(package)
+            package.set_vehicle(vehicle)
             distance_to_pickup = vehicle.get_distance_along_road(
                 package.assigned_pickup.center
             ) - distance
