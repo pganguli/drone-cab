@@ -1,10 +1,16 @@
 import math
 
+from matplotlib import image
 import matplotlib.animation as animation
+from matplotlib.artist import Artist
+from matplotlib.offsetbox import AnnotationBbox, OffsetImage
 import matplotlib.pyplot as plt
 import networkx as nx
 
-from drone_cab.utils import euclidean_distance
+
+def euclidean_distance(a, b):
+    return ((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2) ** 0.5
+
 
 #
 # Constants for experiment setup
@@ -109,8 +115,12 @@ distance_text = ax.text(x=0.01, y=0.94, s="", transform=ax.transAxes)
 for residence in RESIDENCE_CENTERS:
     ax.add_patch(plt.Circle(xy=residence, radius=1, color="blue"))
 
-(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
 ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
+
+drone_img = image.imread("data/drone.png")
+drone_img_box = OffsetImage(drone_img, zoom=0.20)
+drone_box = AnnotationBbox(drone_img_box, DRONE_CENTER, frameon=False)
+ax.add_artist(drone_box)
 
 (trace,) = ax.plot([], [], lw=1, color="black")
 
@@ -147,7 +157,7 @@ distance_travelled = 0
 
 
 def update(i):
-    global x, y, target_x, target_y, distance_travelled
+    global x, y, target_x, target_y, distance_travelled, drone_box
 
     #
     # Drone history trace record
@@ -156,7 +166,10 @@ def update(i):
     history_x.append(x)
     history_y.append(y)
 
-    drone.set_data([history_x[i]], [history_y[i]])
+    Artist.remove(drone_box)
+    drone_box = AnnotationBbox(drone_img_box, (x, y), frameon=False)
+    ax.add_artist(drone_box)
+    
     trace.set_data(history_x[:i], history_y[:i])
 
     # Drone reached current target; set next target
@@ -164,7 +177,7 @@ def update(i):
         try:
             target_x, target_y = next(path_iter)
         except StopIteration:
-            return drone, trace, time_text, distance_text
+            return drone_box, trace, time_text, distance_text
 
     #
     # Drone step towards current target
@@ -180,7 +193,7 @@ def update(i):
     time_text.set_text(f"time = {i * dt:.2f}s")
     distance_text.set_text(f"distance = {distance_travelled:.2f}")
 
-    return drone, trace, time_text, distance_text
+    return drone_box, trace, time_text, distance_text
 
 
 anim = animation.FuncAnimation(
