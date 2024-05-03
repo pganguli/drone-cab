@@ -69,6 +69,46 @@ class Drone(traci.StepListener):
         self.current_position: tuple[float, float] = self.center
         self.carrying_package_set: set[Package] = set()
 
+        traci.polygon.add(
+            polygonID=f"drone#{self.pickup_id}",
+            shape=[
+                # - +
+                (self.current_position[0] - 1, self.current_position[1] + 0.5),
+                (self.current_position[0] - 4, self.current_position[1] + 4),
+                (self.current_position[0] - 6, self.current_position[1] + 3),
+                (self.current_position[0] - 3, self.current_position[1] + 6),
+                (self.current_position[0] - 4, self.current_position[1] + 4),
+                (self.current_position[0] - 0.5, self.current_position[1] + 1),
+                # + +
+                (self.current_position[0] + 0.5, self.current_position[1] + 1),
+                (self.current_position[0] + 4, self.current_position[1] + 4),
+                (self.current_position[0] + 3, self.current_position[1] + 6),
+                (self.current_position[0] + 6, self.current_position[1] + 3),
+                (self.current_position[0] + 4, self.current_position[1] + 4),
+                (self.current_position[0] + 1, self.current_position[1] + 0.5),
+                # + -
+                (self.current_position[0] + 1, self.current_position[1] - 0.5),
+                (self.current_position[0] + 4, self.current_position[1] - 4),
+                (self.current_position[0] + 6, self.current_position[1] - 3),
+                (self.current_position[0] + 3, self.current_position[1] - 6),
+                (self.current_position[0] + 4, self.current_position[1] - 4),
+                (self.current_position[0] + 0.5, self.current_position[1] - 1),
+                # - -
+                (self.current_position[0] - 0.5, self.current_position[1] - 1),
+                (self.current_position[0] - 4, self.current_position[1] - 4),
+                (self.current_position[0] - 3, self.current_position[1] - 6),
+                (self.current_position[0] - 6, self.current_position[1] - 3),
+                (self.current_position[0] - 4, self.current_position[1] - 4),
+                (self.current_position[0] - 1, self.current_position[1] - 0.5),
+                # - +
+                (self.current_position[0] - 1, self.current_position[1] + 0.5),
+            ],
+            color=(0, 0, 128),
+            polygonType="drone",
+            fill=True,
+        )
+
+        self.polygon_id = f"drone#{self.pickup_id}"
         logger.debug(f"Created {self}")
 
     def __repr__(self) -> str:
@@ -171,6 +211,41 @@ class Drone(traci.StepListener):
         self.current_position = (
             x + distance_step * math.cos(theta),
             y + distance_step * math.sin(theta),
+        )
+        traci.polygon.setShape(
+            polygonID=self.polygon_id,
+            shape=[
+                # - +
+                (self.current_position[0] - 1, self.current_position[1] + 0.5),
+                (self.current_position[0] - 4, self.current_position[1] + 4),
+                (self.current_position[0] - 6, self.current_position[1] + 3),
+                (self.current_position[0] - 3, self.current_position[1] + 6),
+                (self.current_position[0] - 4, self.current_position[1] + 4),
+                (self.current_position[0] - 0.5, self.current_position[1] + 1),
+                # + +
+                (self.current_position[0] + 0.5, self.current_position[1] + 1),
+                (self.current_position[0] + 4, self.current_position[1] + 4),
+                (self.current_position[0] + 3, self.current_position[1] + 6),
+                (self.current_position[0] + 6, self.current_position[1] + 3),
+                (self.current_position[0] + 4, self.current_position[1] + 4),
+                (self.current_position[0] + 1, self.current_position[1] + 0.5),
+                # + -
+                (self.current_position[0] + 1, self.current_position[1] - 0.5),
+                (self.current_position[0] + 4, self.current_position[1] - 4),
+                (self.current_position[0] + 6, self.current_position[1] - 3),
+                (self.current_position[0] + 3, self.current_position[1] - 6),
+                (self.current_position[0] + 4, self.current_position[1] - 4),
+                (self.current_position[0] + 0.5, self.current_position[1] - 1),
+                # - -
+                (self.current_position[0] - 0.5, self.current_position[1] - 1),
+                (self.current_position[0] - 4, self.current_position[1] - 4),
+                (self.current_position[0] - 3, self.current_position[1] - 6),
+                (self.current_position[0] - 6, self.current_position[1] - 3),
+                (self.current_position[0] - 4, self.current_position[1] - 4),
+                (self.current_position[0] - 1, self.current_position[1] - 0.5),
+                # - +
+                (self.current_position[0] - 1, self.current_position[1] + 0.5),
+            ],
         )
         self.distance_travelled_per_flight += distance_step
         logger.debug(
