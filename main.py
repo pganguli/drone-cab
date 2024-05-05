@@ -2,6 +2,7 @@ import logging
 import os
 import sys
 from collections import deque
+from logging.handlers import RotatingFileHandler
 
 from drone_cab import Package, Pickup, Vehicle, Warehouse
 from drone_cab.assign import assign_package_pickup, assign_package_vehicle
@@ -15,10 +16,13 @@ logger = logging.getLogger(__name__)
 
 def main():
     logging.basicConfig(
-        filename="drone_cab.log",
+        handlers=[
+            RotatingFileHandler(
+                "drone_cab.log", mode="w", maxBytes=1024 * 1024 * 256, backupCount=1
+            )
+        ],
         format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
         level=logging.DEBUG,
-        filemode="w",
     )
 
     traci.start(
