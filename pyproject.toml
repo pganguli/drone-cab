@@ -9,7 +9,7 @@ packages = [{include = "drone_cab"}]
 [tool.poetry.dependencies]
 python = "^3.11"
 numpy = "^1.26.4"
-matplotlib = "^3.8.4"
+matplotlib = "^3.9.0"
 networkx = "^3.3"
 traci = "^1.19.0"
 scipy = "^1.13.0"
