@@ -1,12 +1,10 @@
 import math
+import random
 
-from matplotlib import image
 import matplotlib.animation as animation
-from matplotlib.artist import Artist
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.patches import Wedge
-from matplotlib.offsetbox import OffsetImage, AnnotationBbox
 
 
 def euclidean_distance(a, b):
@@ -19,7 +17,7 @@ def euclidean_distance(a, b):
 
 DRONE_CENTER = (908.783925, 987.6503665714287)
 DRONE_SPEED = 2
-DRONE_RANGE = 200
+DRONE_RANGE = 300
 RESIDENCE_CENTERS = [
     (910.3206866, 982.6598806),
     (897.7645155999999, 983.6238812000001),
@@ -91,7 +89,7 @@ RESIDENCE_CENTERS = [
     (844.6615038, 915.2693621999999),
     (959.8089497999999, 905.2383588),
 ]
-RESIDENCE_CENTERS = RESIDENCE_CENTERS[:30]
+RESIDENCE_CENTERS = RESIDENCE_CENTERS[-30:]
 
 #
 # Matplotlib plot setup
@@ -120,6 +118,7 @@ farthest_residence = max(
 )
 radius = euclidean_distance(DRONE_CENTER, farthest_residence)
 theta = DRONE_RANGE / radius - 2
+print(radius)
 
 farthest_distance = ax.plot(
     (DRONE_CENTER[0], farthest_residence[0]),
@@ -145,7 +144,12 @@ sector = Wedge(
     alpha=0.25,
     color="orange",
 )
-
+print(
+    sector,
+    math.degrees(farthest_residence_angle),
+    math.degrees(farthest_residence_angle - theta / 2),
+    math.degrees(farthest_residence_angle + theta / 2),
+)
 ax.add_patch(sector)
 
 for residence in RESIDENCE_CENTERS:
@@ -165,12 +169,8 @@ for residence in RESIDENCE_CENTERS:
         )
     )
 
-ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=1.5, color="red"))
-
-drone_img = image.imread("data/drone.png")
-drone_img_box = OffsetImage(drone_img, zoom=0.20)
-drone_box = AnnotationBbox(drone_img_box, DRONE_CENTER, frameon=False)
-ax.add_artist(drone_box)
+(drone,) = ax.plot(DRONE_CENTER, marker="x", color="red", markersize=10)
+ax.add_patch(plt.Circle(xy=DRONE_CENTER, radius=2, color="red"))
 
 (trace,) = ax.plot([], [], lw=1, color="black")
 
@@ -182,6 +182,7 @@ G = nx.Graph()
 G.add_node(DRONE_CENTER)
 for residence in RESIDENCE_CENTERS:
     if sector.contains_point(ax.transData.transform(residence)):
+        print(residence)
         G.add_node(residence)
 G.add_weighted_edges_from(
     [
@@ -200,18 +201,19 @@ path_iter = iter(path)
 
 x, y = next(path_iter)
 assert (
-    x,
-    y,
-) == DRONE_CENTER, (
-    f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
-)
+    (
+        x,
+        y,
+    )
+    == DRONE_CENTER
+), f"Drone attempted to take off from {(x, y)} instead of {DRONE_CENTER=}"
 target_x, target_y = x, y
 history_x, history_y = [], []
 distance_travelled = 0
 
 
 def update(i):
-    global x, y, target_x, target_y, distance_travelled, drone_box
+    global x, y, target_x, target_y, distance_travelled
 
     #
     # Drone history trace record
@@ -220,10 +222,7 @@ def update(i):
     history_x.append(x)
     history_y.append(y)
 
-    Artist.remove(drone_box)
-    drone_box = AnnotationBbox(drone_img_box, (x, y), frameon=False)
-    ax.add_artist(drone_box)
-
+    drone.set_data([x], [y])
     trace.set_data(history_x, history_y)
 
     # Drone reached current target; set next target
@@ -231,7 +230,7 @@ def update(i):
         try:
             target_x, target_y = next(path_iter)
         except StopIteration:
-            return drone_box, trace, time_text, distance_text
+            return drone, trace, time_text, distance_text
 
     #
     # Drone step towards current target
@@ -247,7 +246,7 @@ def update(i):
     time_text.set_text(f"time = {i * dt:.2f}s")
     distance_text.set_text(f"distance = {distance_travelled:.2f}")
 
-    return drone_box, trace, time_text, distance_text
+    return drone, trace, time_text, distance_text
 
 
 anim = animation.FuncAnimation(

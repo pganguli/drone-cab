@@ -7,7 +7,9 @@ from matplotlib.patches import Ellipse
 from scipy.integrate import quad
 from scipy.optimize import fsolve
 
-from drone_cab.utils import euclidean_distance
+
+def euclidean_distance(a, b):
+    return math.sqrt((a[0] - b[0]) ** 2 + (a[1] - b[1]) ** 2)
 
 
 def ellipse_perimeter(
