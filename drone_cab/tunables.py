@@ -93,3 +93,12 @@ def PICKUP_CAPACITY() -> int:
         A (possibly random) capacity for a pickup.
     """
     return 2  # random.randint(5, 15)
+
+
+def AVG_STEPS_PER_PACKAGE_REQUEST() -> int:
+    """Generate capacities for pickups.
+
+    Returns:
+        A (possibly random) capacity for a pickup.
+    """
+    return 2  # random.randint(5, 15)
