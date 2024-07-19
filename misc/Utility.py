@@ -84,7 +84,7 @@ class Road:
     def getAllPossibleStationLocation(self):
         locations = []
         placement_distance = Constant.INITIAL_STATION_PLACEMENT_DISTANCE
-        Logger.Write("Road : {}, Direction {}{}, Gradient : {}, Angle : {}".format(self.id, '\u2192' if self.centerLine[0].x < self.centerLine[1].x else '\u2190' if self.centerLine[0].x > self.centerLine[1].x else '\u2194', '\u2191' if self.centerLine[0].y < self.centerLine[1].y else '\u2193' if self.centerLine[0].y > self.centerLine[1].y else '\u2195', self.centerLine[0].getGradient(self.centerLine[1]), self.centerLine[0].getAngleOfGradient(self.centerLine[1])))
+        Logger.Write("Road : {}, Direction {}{}, Gradient : {}, Angle : {}".format(self.id, "Right" if self.centerLine[0].x < self.centerLine[1].x else 'Left' if self.centerLine[0].x > self.centerLine[1].x else 'Left-Right', 'Up' if self.centerLine[0].y < self.centerLine[1].y else 'Down' if self.centerLine[0].y > self.centerLine[1].y else 'Up-Down', self.centerLine[0].getGradient(self.centerLine[1]), self.centerLine[0].getAngleOfGradient(self.centerLine[1])))
         for i in range(len(self.centerLine) - 1):
             distance = self.centerLine[i].getDistanceFrom(self.centerLine[i+1])
             if distance < placement_distance:

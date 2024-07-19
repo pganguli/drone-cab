@@ -8,6 +8,7 @@ packages from the central warehouse to the drone pickup points.
 from __future__ import annotations
 
 import logging
+import random
 from typing import TYPE_CHECKING
 
 from drone_cab.tunables import VEHICLE_CAPACITY
@@ -35,6 +36,8 @@ class Vehicle(traci.StepListener):
     """
 
     vehicle_list: list[Vehicle] = []  #: List of all vehicle objects.
+    vehicle_id: int = 0
+    valid_edges = []    #List of all non-internal edges
 
     def __init__(
         self, vehicle_id: str, vehicle_capacity: int = VEHICLE_CAPACITY()
@@ -124,6 +127,7 @@ class Vehicle(traci.StepListener):
             raise e
 
         self.carrying_package_set.add(package)
+        print(f"Vehicle {self.id} has pick up {package} from warehouse to drop at {package.assigned_pickup}")
         traci.vehicle.setColor(self.id, (0, 255, 0))
         logger.debug(f"Assigned vehicle of {package} to {self}")
 
@@ -198,3 +202,63 @@ class Vehicle(traci.StepListener):
         """
         Vehicle.create_vehicle_list()
         return Vehicle.vehicle_list
+    
+    @staticmethod
+    def create_random_route():
+        """Creates a route randomly
+        """
+        edges = Vehicle.getValidEdges('taxi')
+        while(True):
+            source_index = random.randint(0, len(edges)-1)
+            destination_index = source_index
+            while(destination_index == source_index) :
+                destination_index = random.randint(0, len(edges)-1)
+            source_edge = edges[source_index]
+            destination_edge = edges[destination_index]
+            stage = traci.simulation.findRoute(source_edge, destination_edge, vType='DEFAULT_TAXITYPE')
+            if (len(stage.edges) != 0):
+                break
+        # print(stage.vType, stage.edges)
+        traci.route.add(f"r-{Vehicle.vehicle_id}", stage.edges)
+        # logger.info(f"Route r-{Vehicle.vehicle_id} is created from edge {source_edge} to {destination_edge}.")
+        # print(f"Route r-{Vehicle.vehicle_id} is created from edge {source_edge} to {destination_edge}.")
+        return f"r-{Vehicle.vehicle_id}"
+
+    @staticmethod
+    def add_vehicle():
+        """Adds a new vehicle object in the current simulation.
+        """
+        # Vehicle_Type_ID Vehicle_Type_Name (for reference)
+        # DEFAULT_BIKETYPE bicycle
+        # DEFAULT_CONTAINERTYPE ignoring
+        # DEFAULT_PEDTYPE pedestrian
+        # DEFAULT_RAILTYPE rail
+        # DEFAULT_TAXITYPE taxi
+        # DEFAULT_VEHTYPE passenger
+
+        Vehicle.vehicle_id += 1
+        id = "v-"+str(Vehicle.vehicle_id)
+        route = Vehicle.create_random_route()
+        traci.vehicle.add(vehID=id, routeID=route, typeID="DEFAULT_TAXITYPE")
+        # traci.vehicle.changeTarget(id,traci.edge.getIDList()[random.randint(0, traci.edge.getIDCount()-1)])
+        logger.info(f"Added vehicle {id} in simulation.")
+
+    @staticmethod
+    def getValidEdges(vType = 'taxi') -> list[str]:
+        # return traci.edge.getIDList()
+        if len(Vehicle.valid_edges) == 0:
+            lanes = traci.lane.getIDList()
+            edges = set()
+            for lane in lanes:
+                if vType in traci.lane.getAllowed(lane):
+                    edge = traci.lane.getEdgeID(lane)
+                    if not str(edge).startswith(":"):
+                        edges.add(edge)
+                        print (f'{edge} is selected.')
+                else :
+                    print(traci.lane.getAllowed(lane))
+            Vehicle.valid_edges = list(edges)
+        return Vehicle.valid_edges
+
+
+    

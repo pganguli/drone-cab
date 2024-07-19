@@ -160,6 +160,7 @@ class Drone(traci.StepListener):
         self.current_target = next(self.route)
         self.parked = False
         self.distance_travelled_per_flight = 0.0
+        print(f'Drone of {self.pickup_id} took off for {self.current_target}.')
 
     def end_tsp(self) -> None:
         """End the TSP route of the drone."""
@@ -169,6 +170,8 @@ class Drone(traci.StepListener):
         self.parked = True
         self.idle_steps = 0
         self.distance_travelled += self.distance_travelled_per_flight
+        print(f'Drone of {self.pickup_id} returned at centre. Distance Travelled = {self.distance_travelled_per_flight}')
+        print(f'Total Distance Travelled by Drone of {self.pickup_id} is {self.distance_travelled}.')
 
     def drop_package(self, package: Package) -> None:
         """Drop off a package being cuurently carried by this drone at its destination residence.
@@ -187,6 +190,7 @@ class Drone(traci.StepListener):
         self.carrying_package_set.remove(package)
         package.mark_delivered(distance_drone=self.distance_travelled_per_flight)
         logger.debug(f"Delivered {package} by {self}")
+        print(f'{package} is delivered by Drone of {self.pickup_id}.')
 
     def fly_along_route(self):
         if self.current_position == self.current_target.center:
@@ -259,3 +263,4 @@ class Drone(traci.StepListener):
             self.fly_along_route()
 
         return True
+

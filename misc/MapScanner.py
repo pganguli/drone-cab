@@ -69,10 +69,10 @@ def showAllPoints(points: list[Point]):
         pt.print()
         i+=1
         
-def readStaticNetwork(sumocfg, alongwithInternal=False) -> sumolib.net.Net:
-    netFile = sumolib.xml.parse(sumocfg, 'net-file')
+def readStaticNetwork(config_file_path, config_file_name, alongwithInternal=False) -> sumolib.net.Net:
+    netFile = sumolib.xml.parse(config_file_path+config_file_name, 'net-file')
     netFileName = list(netFile)[0].__getattribute__('value')
-    return sumolib.net.readNet(netFileName, withInternal=alongwithInternal)
+    return sumolib.net.readNet(config_file_path+netFileName, withInternal=alongwithInternal)
 
 def getVehicleTypes():
     vTypes = []
@@ -253,64 +253,64 @@ def doPrint(msg, inSUMO = True, inConsole = True, end="\n", inLogFile = True ):
         Logger.Write(str(msg))
 
 
-def runMapScanner(config_file_path, gui=False, logFile="log.txt"):
+def runMapScanner(config_file_path, config_file_name, gui=False, logFile="log.txt"):
     if gui:
-        sumoCmd = ["sumo-gui", "-c", config_file_path]
+        sumoCmd = ["sumo-gui", "-c", config_file_path+config_file_name]
     else:
-        sumoCmd = ["sumo", "-c", config_file_path]
+        sumoCmd = ["sumo", "-c", config_file_path+config_file_name]
     traci.start(sumoCmd)
-    net = readStaticNetwork(config_file_path)
+    net = readStaticNetwork(config_file_path, config_file_name)
     Logger.Initialize(logFile)
     addWarehouse(net, True)
 
-    # # doPrint("Click on the Run button above to start the simulation.", inConsole=False, inLogFile=False)
-    # # ** Don't delele!! Below two lines of code is for generic selection of poly type
-    # # polygon_types = getTypewisePolygonCount()
-    # # residential_polygon_types = selectPolygonTypesAsResedentials(polygon_types)
-    # residential_polygon_types = ['building']
-    # residential_polygons, all_points = ExtractRequiredPolygons(residential_polygon_types)
-    # sortAllPoints(all_points)
-    # # vehicleTypes = selectVehicleTypesForParcelCarry()     
-    # vehicleTypes = ['taxi']
-    # roads = getAllowedRoad(net, vehicleTypes)
-    # possible_stations = InitializeAllPossibleStations(roads)
-    # showStations(possible_stations)
-    # calculateCoverageByPossibleStations(possible_stations, all_points)
-    # if reportUncoveredPolygon(residential_polygons) == 0:
-    #     coverage_matrix = getCoverageMatrix(residential_polygons, possible_stations)
-    #     problem, x = formulateProblem(len(possible_stations), len(residential_polygons), coverage_matrix)    
-    #     solver = pl.PULP_CBC_CMD()
-    #     doPrint("Solving Problem using PuLP!")
-    #     if(problem.solve(solver) == 1):
-    #         doPrint("PuLP has solve with objective value {}. ".format(problem.objective.value()))
-    #         doPrint("Removing unselected stations...")
-    #         for i in range(len(x)-1, -1, -1):
-    #             # print(x[i].value())
-    #             if x[i].value() == 0:
-    #                 removeStation(possible_stations, i)
-    #         doPrint("Optimal number of Stations after removal : {}".format(Station.count), True)                
-    #         for station in possible_stations:
-    #             # station.printStation()
-    #             doPrint("Station id : {}, location = ({}, {}), road = {}".format(station.id, station.location.x, station.location.y, station.at_road.id))
-    #         doPrint("Cross-verifying coverage..")            
-    #         reportUncoveredPolygon(residential_polygons)
-    #         reportPolygonCoverage(residential_polygons)
-    #     else:
-    #         doPrint(pl.LpStatus[problem.status])
+    # doPrint("Click on the Run button above to start the simulation.", inConsole=False, inLogFile=False)
+    # ** Don't delele!! Below two lines of code is for generic selection of poly type
+    # polygon_types = getTypewisePolygonCount()
+    # residential_polygon_types = selectPolygonTypesAsResedentials(polygon_types)
+    residential_polygon_types = ['building']
+    residential_polygons, all_points = ExtractRequiredPolygons(residential_polygon_types)
+    sortAllPoints(all_points)
+    # vehicleTypes = selectVehicleTypesForParcelCarry()     
+    vehicleTypes = ['taxi']
+    roads = getAllowedRoad(net, vehicleTypes)
+    possible_stations = InitializeAllPossibleStations(roads)
+    showStations(possible_stations)
+    calculateCoverageByPossibleStations(possible_stations, all_points)
+    if reportUncoveredPolygon(residential_polygons) == 0:
+        coverage_matrix = getCoverageMatrix(residential_polygons, possible_stations)
+        problem, x = formulateProblem(len(possible_stations), len(residential_polygons), coverage_matrix)    
+        solver = pl.PULP_CBC_CMD()
+        doPrint("Solving Problem using PuLP!")
+        if(problem.solve(solver) == 1):
+            doPrint("PuLP has solve with objective value {}. ".format(problem.objective.value()))
+            doPrint("Removing unselected stations...")
+            for i in range(len(x)-1, -1, -1):
+                # print(x[i].value())
+                if x[i].value() == 0:
+                    removeStation(possible_stations, i)
+            doPrint("Optimal number of Stations after removal : {}".format(Station.count), True)                
+            for station in possible_stations:
+                # station.printStation()
+                doPrint("Station id : {}, location = ({}, {}), road = {}".format(station.id, station.location.x, station.location.y, station.at_road.id))
+            doPrint("Cross-verifying coverage..")            
+            reportUncoveredPolygon(residential_polygons)
+            reportPolygonCoverage(residential_polygons)
+        else:
+            doPrint(pl.LpStatus[problem.status])
         
-    # nodes = net.getNodes()
-    # for node in nodes:
-    #     print("ID : ", node.getID(), ", Incoming : ", end="" )
-    #     incoming = node.getIncoming()
-    #     for i in incoming:
-    #         print(i.getID(), end=", ")
-    #     outgoing = node.getOutgoing()
-    #     print("Outgoing : ", end="")
-    #     for o in outgoing:
-    #         print(o.getID(), end=", ")
-    #     print()
+    nodes = net.getNodes()
+    for node in nodes:
+        print("ID : ", node.getID(), ", Incoming : ", end="" )
+        incoming = node.getIncoming()
+        for i in incoming:
+            print(i.getID(), end=", ")
+        outgoing = node.getOutgoing()
+        print("Outgoing : ", end="")
+        for o in outgoing:
+            print(o.getID(), end=", ")
+        print()
 
     Logger.Close()
     traci.close()
 
-runMapScanner("test.sumocfg.xml", True)
+runMapScanner("data/", "config.sumocfg", True)

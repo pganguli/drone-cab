@@ -196,7 +196,8 @@ class Pickup(traci.StepListener):
         t += 0
 
         if self.received_package_set:
-            if self.drone.idle_steps > DRONE_MAX_IDLE_STEPS() and self.drone.parked:
+            
+            if self.drone.idle_steps > DRONE_MAX_IDLE_STEPS() and self.drone.parked and len(self.drone.carrying_package_set) != 0:
                 self.init_tsp()
             else:
                 self.drone.idle_steps += 1

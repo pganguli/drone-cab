@@ -63,19 +63,23 @@ def main():
     step = 0
     package_counter = 0
     package_request_step = next_package_request_step(step)
-    while package_counter < 1000:
+    while package_counter < 1000 or (package_counter > 0 and package_queue):       # What is package_counter? Why it should be < 1000? - PKS
         logger.info(f"Simulation {step=}")
+
+        if traci.vehicle.getIDCount() <= 200:
+            Vehicle.add_vehicle()
 
         for vehicle in Vehicle.get_vehicle_list():
             vehicle.step()
 
-        if step == package_request_step:
+        if step == package_request_step and package_counter < 1000:
             destination_id = rng.choice(building_ids, replace=False)
             package = Package(destination_id)
             package_queue.append(package)
             package_request_step = next_package_request_step(step)
             package_counter += 1
             logger.debug(f"Generated {package=} request at {step=}")
+            print(f"Generated {package=} request at {step=}.")
 
         unassigned_packages: deque[Package] = deque()
         while package_queue:
